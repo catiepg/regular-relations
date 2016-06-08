@@ -1,7 +1,6 @@
 package relations
 
 import (
-	"github.com/deckarep/golang-set"
 	"github.com/oleiade/lane"
 )
 
@@ -11,29 +10,19 @@ type treeNode struct {
 	right    *treeNode
 	index    int // only for leaf nodes
 	nullable bool
-	firstPos mapset.Set
-	lastPos  mapset.Set
+	firstPos *set
+	lastPos  *set
 }
 
-func (node *treeNode) updateFollowPos(followPos map[int]mapset.Set) map[int]mapset.Set {
+func (node *treeNode) updateFollowPos(followPos map[int]*set) map[int]*set {
 	switch node.data {
 	case ".":
-		for pos := range node.left.lastPos.Iter() {
-			position := pos.(int)
-			if followSet, ok := followPos[position]; ok {
-				followPos[position] = followSet.Union(node.right.firstPos)
-			} else {
-				followPos[position] = node.right.firstPos.Clone()
-			}
+		for position := range (*node.left.lastPos) {
+			followPos[position] = node.right.firstPos.union(followPos[position])
 		}
 	case "*":
-		for pos := range node.lastPos.Iter() {
-			position := pos.(int)
-			if followSet, ok := followPos[position]; ok {
-				followPos[position] = followSet.Union(node.firstPos)
-			} else {
-				followPos[position] = node.firstPos.Clone()
-			}
+		for position := range (*node.lastPos) {
+			followPos[position] = node.firstPos.union(followPos[position])
 		}
 	}
 	return followPos
@@ -43,8 +32,8 @@ func newLeafNode(data string, index int) *treeNode {
 	return &treeNode{
 		data:     data,
 		index:    index,
-		firstPos: mapset.NewSetWith(index),
-		lastPos:  mapset.NewSetWith(index),
+		firstPos: newSet(index),
+		lastPos:  newSet(index),
 	}
 }
 
@@ -54,30 +43,30 @@ func newOperatorNode(operator string, left, right *treeNode) *treeNode {
 	switch operator {
 	case "*":
 		node.nullable = true
-		node.firstPos = node.left.firstPos.Clone()
-		node.lastPos = node.left.lastPos.Clone()
+		node.firstPos = node.left.firstPos.clone()
+		node.lastPos = node.left.lastPos.clone()
 	case "+":
 		node.nullable = node.right.nullable || node.left.nullable
-		node.firstPos = node.left.firstPos.Union(node.right.firstPos)
-		node.lastPos = node.left.lastPos.Union(node.right.lastPos)
+		node.firstPos = node.left.firstPos.union(node.right.firstPos)
+		node.lastPos = node.left.lastPos.union(node.right.lastPos)
 	case ".":
 		node.nullable = node.right.nullable && node.left.nullable
 		if node.left.nullable {
-			node.firstPos = node.left.firstPos.Union(node.right.firstPos)
+			node.firstPos = node.left.firstPos.union(node.right.firstPos)
 		} else {
-			node.firstPos = node.left.firstPos.Clone()
+			node.firstPos = node.left.firstPos.clone()
 		}
 		if node.right.nullable {
-			node.lastPos = node.left.lastPos.Union(node.right.lastPos)
+			node.lastPos = node.left.lastPos.union(node.right.lastPos)
 		} else {
-			node.lastPos = node.right.lastPos.Clone()
+			node.lastPos = node.right.lastPos.clone()
 		}
 	}
 	return node
 }
 
-func parseTree(raw string) (*treeNode, map[int]mapset.Set) {
-	followPos := make(map[int]mapset.Set)
+func parseTree(raw string) (*treeNode, map[int]*set) {
+	followPos := make(map[int]*set)
 
 	nodeStack := lane.NewStack()
 	operatorStack := lane.NewStack()
