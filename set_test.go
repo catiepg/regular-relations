@@ -7,7 +7,7 @@ import (
 )
 
 func TestNewSet(t *testing.T) {
-	s := newSet(1, 2 ,3)
+	s := newSet(1, 2, 3)
 
 	assert.Equal(t, s.cardinality(), 3)
 	assert.True(t, s.contains(1))
@@ -16,7 +16,7 @@ func TestNewSet(t *testing.T) {
 }
 
 func TestNoDuplicates(t *testing.T) {
-	s := newSet(1, 2 ,3)
+	s := newSet(1, 2, 3)
 	assert.Equal(t, s.cardinality(), 3)
 
 	s.add(3)

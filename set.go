@@ -26,7 +26,7 @@ func (s *set) contains(element int) bool {
 func (s *set) union(other *set) *set {
 	unionSet := s.clone()
 	if other != nil {
-		for element := range *other {
+		for element := range (*other) {
 			unionSet.add(element)
 		}
 	}
@@ -35,7 +35,7 @@ func (s *set) union(other *set) *set {
 
 func (s *set) clone() *set {
 	newClone := newSet()
-	for element := range *s {
+	for element := range (*s) {
 		newClone.add(element)
 	}
 	return newClone

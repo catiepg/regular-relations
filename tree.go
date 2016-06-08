@@ -4,69 +4,83 @@ import (
 	"github.com/oleiade/lane"
 )
 
-type treeNode struct {
+type node struct {
 	data     string
-	left     *treeNode
-	right    *treeNode
-	index    int // only for leaf nodes
+	left     *node
+	right    *node
+	index    int
 	nullable bool
-	firstPos *set
-	lastPos  *set
+	first *set
+	last  *set
 }
 
-func (node *treeNode) updateFollowPos(followPos map[int]*set) map[int]*set {
-	switch node.data {
-	case ".":
-		for position := range (*node.left.lastPos) {
-			followPos[position] = node.right.firstPos.union(followPos[position])
-		}
+// Computes nullable, firstPos and lastPos
+func (n *node) annotate() {
+	switch n.data {
 	case "*":
-		for position := range (*node.lastPos) {
-			followPos[position] = node.firstPos.union(followPos[position])
-		}
-	}
-	return followPos
-}
-
-func newLeafNode(data string, index int) *treeNode {
-	return &treeNode{
-		data:     data,
-		index:    index,
-		firstPos: newSet(index),
-		lastPos:  newSet(index),
-	}
-}
-
-func newOperatorNode(operator string, left, right *treeNode) *treeNode {
-	node := &treeNode{data: operator, left: left, right: right}
-
-	switch operator {
-	case "*":
-		node.nullable = true
-		node.firstPos = node.left.firstPos.clone()
-		node.lastPos = node.left.lastPos.clone()
+		n.nullable = true
+		n.first = n.left.first.clone()
+		n.last = n.left.last.clone()
 	case "+":
-		node.nullable = node.right.nullable || node.left.nullable
-		node.firstPos = node.left.firstPos.union(node.right.firstPos)
-		node.lastPos = node.left.lastPos.union(node.right.lastPos)
+		n.nullable = n.right.nullable || n.left.nullable
+		n.first = n.left.first.union(n.right.first)
+		n.last = n.left.last.union(n.right.last)
 	case ".":
-		node.nullable = node.right.nullable && node.left.nullable
-		if node.left.nullable {
-			node.firstPos = node.left.firstPos.union(node.right.firstPos)
+		n.nullable = n.right.nullable && n.left.nullable
+		if n.left.nullable {
+			n.first = n.left.first.union(n.right.first)
 		} else {
-			node.firstPos = node.left.firstPos.clone()
+			n.first = n.left.first.clone()
 		}
-		if node.right.nullable {
-			node.lastPos = node.left.lastPos.union(node.right.lastPos)
+		if n.right.nullable {
+			n.last = n.left.last.union(n.right.last)
 		} else {
-			node.lastPos = node.right.lastPos.clone()
+			n.last = n.right.last.clone()
 		}
 	}
-	return node
 }
 
-func parseTree(raw string) (*treeNode, map[int]*set) {
-	followPos := make(map[int]*set)
+type tree struct {
+	root *node
+	follow map[int]*set
+	symbols map[int]string
+}
+
+func newTree() *tree {
+	return &tree{follow: make(map[int]*set), symbols: make(map[int]string)}
+}
+
+func (t *tree) newLeafNode(data string, index int) *node {
+	t.symbols[index] = data
+	return &node{data: data, index: index,
+		first: newSet(index), last: newSet(index)}
+}
+
+func (t *tree) newOperatorNode(operator string, left, right *node) *node {
+	newNode := &node{data: operator, left: left, right: right}
+	newNode.annotate()
+	t.updateFollow(newNode)
+	return newNode
+}
+
+// Updates followPos with information from newly created node
+func (t *tree) updateFollow(n *node) {
+	switch n.data {
+	case ".":
+		for position := range (*n.left.last) {
+			t.follow[position] = n.right.first.union(t.follow[position])
+		}
+	case "*":
+		for position := range (*n.last) {
+			t.follow[position] = n.first.union(t.follow[position])
+		}
+	}
+}
+
+// Builds parse tree from regular expression while computing
+// nullable, firstPos, lastPos and followPos
+func buildTree(raw string) *tree {
+	t := newTree()
 
 	nodeStack := lane.NewStack()
 	operatorStack := lane.NewStack()
@@ -88,7 +102,7 @@ func parseTree(raw string) (*treeNode, map[int]*set) {
 				leaf += char
 			}
 
-			nodeStack.Push(newLeafNode(leaf, index))
+			nodeStack.Push(t.newLeafNode(leaf, index))
 			index += 1
 
 		case "(", "+", ".":
@@ -97,36 +111,30 @@ func parseTree(raw string) (*treeNode, map[int]*set) {
 		case ")":
 			operator := operatorStack.Pop().(string)
 			for operator != "(" {
-				right := nodeStack.Pop().(*treeNode)
-				left := nodeStack.Pop().(*treeNode)
-				newNode := newOperatorNode(operator, left, right)
-				nodeStack.Push(newNode)
-				followPos = newNode.updateFollowPos(followPos)
+				right := nodeStack.Pop().(*node)
+				left := nodeStack.Pop().(*node)
+				nodeStack.Push(t.newOperatorNode(operator, left, right))
 				operator = operatorStack.Pop().(string)
 			}
 
 		case "*":
-			operand := nodeStack.Pop().(*treeNode)
-			newNode := newOperatorNode(char, operand, nil)
-			nodeStack.Push(newNode)
-			followPos = newNode.updateFollowPos(followPos)
+			operand := nodeStack.Pop().(*node)
+			nodeStack.Push(t.newOperatorNode(char, operand, nil))
 		}
 		position += 1
 	}
 
-	// add endmarker character
+	// Add endmarker character
 	operatorStack.Push(".")
-	nodeStack.Push(newLeafNode("!", index))
+	nodeStack.Push(t.newLeafNode("!", index))
 
 	for !operatorStack.Empty() {
 		operator := operatorStack.Pop().(string)
-		right := nodeStack.Pop().(*treeNode)
-		left := nodeStack.Pop().(*treeNode)
-		newNode := newOperatorNode(operator, left, right)
-		nodeStack.Push(newNode)
-		followPos = newNode.updateFollowPos(followPos)
+		right := nodeStack.Pop().(*node)
+		left := nodeStack.Pop().(*node)
+		nodeStack.Push(t.newOperatorNode(operator, left, right))
 	}
 
-	root := nodeStack.Pop()
-	return root.(*treeNode), followPos
+	t.root = nodeStack.Pop().(*node)
+	return t
 }
