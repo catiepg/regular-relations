@@ -6,26 +6,32 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+//TODO: reverse arguments
 func TestParseTreeBuilder(t *testing.T) {
 	regex := `(<a,>+<b,>)*.<a,>.<b,>.<b,>`
 	root := buildTree(regex).root
 
-	assert.Equal(t, root.data, ".")
-	assert.Equal(t, root.left.data, "*")
-	assert.Equal(t, root.right.data, ".")
+	assert.Equal(t, root.data.operator, ".")
+	assert.Equal(t, root.left.data.operator, "*")
+	assert.Equal(t, root.right.data.operator, ".")
 
-	assert.Equal(t, root.left.left.data, "+")
-	assert.Equal(t, root.left.left.left.data, "<a,>")
-	assert.Equal(t, root.left.left.right.data, "<b,>")
+	assert.Equal(t, root.left.left.data.operator, "+")
+	assert.Equal(t, root.left.left.left.data.in, "a")
+	assert.Equal(t, root.left.left.left.data.out, "")
+	assert.Equal(t, root.left.left.right.data.in, "b")
+	assert.Equal(t, root.left.left.right.data.out, "")
 
-	assert.Equal(t, root.right.left.data, "<a,>")
-	assert.Equal(t, root.right.right.data, ".")
+	assert.Equal(t, root.right.left.data.in, "a")
+	assert.Equal(t, root.right.left.data.out, "")
+	assert.Equal(t, root.right.right.data.operator, ".")
 
-	assert.Equal(t, root.right.right.left.data, "<b,>")
-	assert.Equal(t, root.right.right.right.data, ".")
+	assert.Equal(t, root.right.right.left.data.in, "b")
+	assert.Equal(t, root.right.right.left.data.out, "")
+	assert.Equal(t, root.right.right.right.data.operator, ".")
 
-	assert.Equal(t, root.right.right.right.left.data, "<b,>")
-	assert.Equal(t, root.right.right.right.right.data, "!")
+	assert.Equal(t, root.right.right.right.left.data.in, "b")
+	assert.Equal(t, root.right.right.right.left.data.out, "")
+	assert.Equal(t, root.right.right.right.right.data.in, "!")
 }
 
 func TestParseTreeIndexing(t *testing.T) {

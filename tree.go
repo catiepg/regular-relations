@@ -4,19 +4,25 @@ import (
 	"github.com/oleiade/lane"
 )
 
+type symbol struct {
+	operator string
+	in       string
+	out      string
+}
+
 type node struct {
-	data     string
+	data     *symbol
 	left     *node
 	right    *node
 	index    int
 	nullable bool
-	first *set
-	last  *set
+	first    *set
+	last     *set
 }
 
 // Computes nullable, firstPos and lastPos
 func (n *node) annotate() {
-	switch n.data {
+	switch n.data.operator {
 	case "*":
 		n.nullable = true
 		n.first = n.left.first.clone()
@@ -41,23 +47,28 @@ func (n *node) annotate() {
 }
 
 type tree struct {
-	root *node
-	follow map[int]*set
-	symbols map[int]string
+	root    *node
+	follow  map[int]*set
+	symbols map[int]*symbol
 }
 
 func newTree() *tree {
-	return &tree{follow: make(map[int]*set), symbols: make(map[int]string)}
+	return &tree{follow: make(map[int]*set), symbols: make(map[int]*symbol)}
 }
 
-func (t *tree) newLeafNode(data string, index int) *node {
+func (t *tree) newLeafNode(data *symbol, index int) *node {
 	t.symbols[index] = data
-	return &node{data: data, index: index,
+	newNode := &node{data: data, index: index,
 		first: newSet(index), last: newSet(index)}
+	if data.in == "" && data.out == "" {
+		newNode.nullable = true
+	}
+	return newNode
 }
 
 func (t *tree) newOperatorNode(operator string, left, right *node) *node {
-	newNode := &node{data: operator, left: left, right: right}
+	data := &symbol{operator: operator}
+	newNode := &node{data: data, left: left, right: right}
 	newNode.annotate()
 	t.updateFollow(newNode)
 	return newNode
@@ -65,13 +76,13 @@ func (t *tree) newOperatorNode(operator string, left, right *node) *node {
 
 // Updates followPos with information from newly created node
 func (t *tree) updateFollow(n *node) {
-	switch n.data {
+	switch n.data.operator {
 	case ".":
-		for position := range (*n.left.last) {
+		for position := range *n.left.last {
 			t.follow[position] = n.right.first.union(t.follow[position])
 		}
 	case "*":
-		for position := range (*n.last) {
+		for position := range *n.last {
 			t.follow[position] = n.first.union(t.follow[position])
 		}
 	}
@@ -92,17 +103,24 @@ func buildTree(raw string) *tree {
 		char := string(raw[position])
 		switch char {
 		case "<":
-			// TODO: separate pairs and position
-			// check if both are epsilon - in that case the node is nullable
-			var leaf string
-			leaf += char
-			for char != ">" {
+			data := &symbol{}
+			var s string
+			for {
 				position += 1
 				char = string(raw[position])
-				leaf += char
+				if char == "," {
+					data.in = s
+					s = ""
+					continue
+				}
+				if char == ">" {
+					data.out = s
+					break
+				}
+				s += char
 			}
 
-			nodeStack.Push(t.newLeafNode(leaf, index))
+			nodeStack.Push(t.newLeafNode(data, index))
 			index += 1
 
 		case "(", "+", ".":
@@ -126,7 +144,7 @@ func buildTree(raw string) *tree {
 
 	// Add endmarker character
 	operatorStack.Push(".")
-	nodeStack.Push(t.newLeafNode("!", index))
+	nodeStack.Push(t.newLeafNode(&symbol{in: "!"}, index))
 
 	for !operatorStack.Empty() {
 		operator := operatorStack.Pop().(string)
