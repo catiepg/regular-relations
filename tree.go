@@ -5,8 +5,8 @@ import (
 )
 
 type pair struct {
-	in       string
-	out      string
+	in  string
+	out string
 }
 
 func (p *pair) contain(in, out string) bool {
@@ -97,13 +97,13 @@ func (t *tree) newOperatorNode(operator string, left, right *node) *node {
 // Updates followPos with information from newly created node
 func (t *tree) updateFollow(n *node) {
 	switch n.operator {
-	case ".":
-		for position := range *n.left.last {
-			t.follow[position] = n.right.first.union(t.follow[position])
-		}
 	case "*":
 		for position := range *n.last {
 			t.follow[position] = n.first.union(t.follow[position])
+		}
+	case ".":
+		for position := range *n.left.last {
+			t.follow[position] = n.right.first.union(t.follow[position])
 		}
 	}
 }
@@ -161,10 +161,6 @@ func buildTree(raw string) *tree {
 		position += 1
 	}
 
-	// Add endmarker character
-	operatorStack.Push(".")
-	nodeStack.Push(t.newLeafNode("!", "", index))
-
 	for !operatorStack.Empty() {
 		operator := operatorStack.Pop().(string)
 		right := nodeStack.Pop().(*node)
@@ -172,6 +168,11 @@ func buildTree(raw string) *tree {
 		nodeStack.Push(t.newOperatorNode(operator, left, right))
 	}
 
-	t.rootFirst = nodeStack.Pop().(*node).first
+	// Add endmarker character
+	right := t.newLeafNode("!", "", index)
+	left := nodeStack.Pop().(*node)
+	root := t.newOperatorNode(".", left, right)
+
+	t.rootFirst = root.first
 	return t
 }
