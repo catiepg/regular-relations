@@ -1,10 +1,10 @@
 package relations
 
-// TODO: final
 type tState struct {
 	positions *set
 	next      map[string][]*tState
 	out       map[string][]string
+	final     bool
 }
 
 func newTState(positions *set) *tState {
@@ -68,6 +68,9 @@ func buildTransducer(raw string) *transducer {
 			// otherwise create new
 			if u.cardinality() != 0 && newState == nil {
 				newState = newTState(u)
+				if newState.positions.contains(t.final) {
+					newState.final = true
+				}
 				unmarkedStates = append(unmarkedStates, newState)
 			}
 

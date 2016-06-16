@@ -43,3 +43,10 @@ func TestSymbols(t *testing.T) {
 	assert.True(t, symbols[2].equal(&pair{in: "b", out: ""}))
 	assert.True(t, symbols[6].equal(&pair{in: "!", out: ""}))
 }
+
+func TestFinal(t *testing.T) {
+	regex := `(<a,>+<b,>)*.<a,>.<b,>.<b,>`
+	final := buildTree(regex).final
+
+	assert.Equal(t, 6, final)
+}

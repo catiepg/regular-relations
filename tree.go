@@ -58,6 +58,7 @@ type tree struct {
 	rootFirst *set
 	follow    map[int]*set
 	symbols   map[int]*pair
+	final     int
 }
 
 func newTree() *tree {
@@ -172,6 +173,8 @@ func buildTree(raw string) *tree {
 	right := t.newLeafNode("!", "", index)
 	left := nodeStack.Pop().(*node)
 	root := t.newOperatorNode(".", left, right)
+
+	t.final = index
 
 	t.rootFirst = root.first
 	return t

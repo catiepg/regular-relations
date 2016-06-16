@@ -26,3 +26,19 @@ func TestTransducer(t *testing.T) {
 	assert.True(t, d.next["a"][0].positions.equal(newSet(1, 2, 3, 4)))
 	assert.True(t, d.next["b"][0].positions.equal(newSet(1, 2, 3)))
 }
+
+func TestTransducerFinal(t *testing.T) {
+	tr := buildTransducer(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
+
+	a := tr.start
+	assert.False(t, a.final)
+
+	b := a.next["a"][0]
+	assert.False(t, b.final)
+
+	c := b.next["b"][0]
+	assert.False(t, c.final)
+
+	d := c.next["b"][0]
+	assert.True(t, d.final)
+}
