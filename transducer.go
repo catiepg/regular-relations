@@ -5,13 +5,13 @@ package relations
 type tState struct {
 	positions *set
 	marked    bool
-	next      map[string]*tState
-	out       map[string]string
+	next      map[string][]*tState
+	out       map[string][]string
 }
 
 func newTState(positions *set, marked bool) *tState {
 	return &tState{positions: positions, marked: marked,
-		next: make(map[string]*tState), out: make(map[string]string)}
+		next: make(map[string][]*tState), out: make(map[string][]string)}
 }
 
 type tStates []*tState
@@ -72,8 +72,8 @@ func buildTransducer(raw string) *transducer {
 				states = append(states, newState)
 			}
 
-			state.next[symb.in] = newState
-			state.out[symb.in] = symb.out
+			state.next[symb.in] = append(state.next[symb.in], newState)
+			state.out[symb.in] = append(state.out[symb.in], symb.out)
 		}
 	}
 
