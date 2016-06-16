@@ -42,3 +42,19 @@ func TestTransducerFinal(t *testing.T) {
 	d := c.next["b"][0]
 	assert.True(t, d.final)
 }
+
+func TestSameInputTape(t *testing.T) {
+	tr := buildTransducer(`<a,b>+<a,c>+<a,d>`)
+
+	a := tr.start
+	assert.True(t, a.positions.equal(newSet(1, 2, 3)))
+	assert.Equal(t, 1, len(a.out))
+	assert.Equal(t, map[string][]string{"a": []string{"b", "c", "d"}}, a.out)
+
+	assert.Equal(t, 1, len(a.next))
+	assert.Equal(t, 3, len(a.next["a"]))
+
+	b := a.next["a"]
+	assert.True(t, b[0] == b[1] && b[1] == b[2])
+	assert.True(t, b[0].positions.equal(newSet(4)))
+}

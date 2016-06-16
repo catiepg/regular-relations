@@ -1,5 +1,6 @@
 package relations
 
+// TODO: handle epsilon and empty set as input - 0 and 1
 type tState struct {
 	positions *set
 	next      map[string][]*tState
