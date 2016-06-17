@@ -2,26 +2,37 @@ package relations
 
 // TODO: handle epsilon and empty set as input - 0 and 1
 type tState struct {
-	positions *set
-	next      map[string][]*tState
-	out       map[string][]string
-	final     bool
+	index int
+	next  map[string][]*tState
+	out   map[string][]string
+	final bool
 }
 
-func newTState(positions *set) *tState {
-	return &tState{
-		positions: positions,
-		next:      make(map[string][]*tState),
-		out:       make(map[string][]string),
+type tStates struct {
+	all       map[int]*tState // index -> state
+	positions map[int]*set    // index -> positions
+	marked    []int
+	unmarked  []int
+	index     int
+}
+
+func (ss *tStates) add(positions *set) *tState {
+	ss.index += 1
+	state := &tState{
+		index: ss.index,
+		next:  make(map[string][]*tState),
+		out:   make(map[string][]string),
 	}
+	ss.all[ss.index] = state
+	ss.positions[ss.index] = positions
+	ss.unmarked = append(ss.unmarked, ss.index)
+	return state
 }
-
-type tStates []*tState
 
 func (ss *tStates) get(positions *set) *tState {
-	for _, state := range *ss {
-		if state.positions.equal(positions) {
-			return state
+	for i, p := range ss.positions {
+		if p.equal(positions) {
+			return ss.all[i]
 		}
 	}
 	return nil
@@ -33,53 +44,48 @@ type transducer struct {
 
 func buildTransducer(raw string) *transducer {
 	t := buildTree(raw)
-	start := newTState(t.rootFirst)
+	states := tStates{all: make(map[int]*tState), positions: make(map[int]*set)}
+	start := states.add(t.rootFirst)
 
-	newTransducer := &transducer{}
-	newTransducer.start = start
-
-	var states, unmarkedStates tStates
-	unmarkedStates = append(unmarkedStates, start)
+	newTransducer := &transducer{start: start}
 
 	for {
-		if len(unmarkedStates) == 0 {
+		if len(states.unmarked) == 0 {
 			break
 		}
 
 		// Get next unmarked state and add it to the set of marked states
-		state := unmarkedStates[0]
-		unmarkedStates = unmarkedStates[1:]
-		states = append(states, state)
+		stateIndex := states.unmarked[0]
+		states.unmarked = states.unmarked[1:]
+		states.marked = append(states.marked, stateIndex)
+		state := states.all[stateIndex]
 
 		for _, symb := range t.alphabet {
 			// Get union of follow for all positions with current symbol
 			u := newSet()
-			for position := range *state.positions {
+			for position := range *states.positions[stateIndex] {
 				if t.symbols[position].equal(symb) {
 					u = u.union(t.follow[position])
 				}
 			}
 
-			// Check if state with these positions already exists,
-			newState := states.get(u)
-			if newState == nil {
-				newState = unmarkedStates.get(u)
-			}
+			// Check if state with these positions already exists...
+			nextState := states.get(u)
 
-			// otherwise create new
-			if u.cardinality() != 0 && newState == nil {
-				newState = newTState(u)
-				if newState.positions.contains(t.final) {
-					newState.final = true
+			// ...otherwise create new state
+			if u.cardinality() != 0 && nextState == nil {
+				nextState = states.add(u)
+				if u.contains(t.final) {
+					nextState.final = true
 				}
-				unmarkedStates = append(unmarkedStates, newState)
 			}
 
 			// Add transitions
-			state.next[symb.in] = append(state.next[symb.in], newState)
-			state.out[symb.in] = append(state.out[symb.in], symb.out)
+			if nextState != nil {
+				state.next[symb.in] = append(state.next[symb.in], nextState)
+				state.out[symb.in] = append(state.out[symb.in], symb.out)
+			}
 		}
 	}
-
 	return newTransducer
 }

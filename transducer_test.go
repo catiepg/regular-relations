@@ -9,22 +9,30 @@ import (
 func TestTransducer(t *testing.T) {
 	tr := buildTransducer(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
 
-	a := tr.start
-	assert.True(t, a.positions.equal(newSet(1, 2, 3)))
-	assert.True(t, a.next["a"][0].positions.equal(newSet(1, 2, 3, 4)))
-	assert.True(t, a.next["b"][0].positions.equal(newSet(1, 2, 3)))
+	state1 := tr.start
+	assert.Equal(t, 1, state1.index)
+	assert.Equal(t, 2, state1.next["a"][0].index)
+	assert.Equal(t, 1, state1.next["b"][0].index)
+	assert.Equal(t, 1, len(state1.next["a"]))
+	assert.Equal(t, 1, len(state1.next["b"]))
 
-	b := a.next["a"][0]
-	assert.True(t, b.next["a"][0].positions.equal(newSet(1, 2, 3, 4)))
-	assert.True(t, b.next["b"][0].positions.equal(newSet(1, 2, 3, 5)))
+	state2 := state1.next["a"][0]
+	assert.Equal(t, 2, state2.next["a"][0].index)
+	assert.Equal(t, 3, state2.next["b"][0].index)
+	assert.Equal(t, 1, len(state2.next["a"]))
+	assert.Equal(t, 1, len(state2.next["b"]))
 
-	c := b.next["b"][0]
-	assert.True(t, c.next["a"][0].positions.equal(newSet(1, 2, 3, 4)))
-	assert.True(t, c.next["b"][0].positions.equal(newSet(1, 2, 3, 6)))
+	state3 := state2.next["b"][0]
+	assert.Equal(t, 2, state3.next["a"][0].index)
+	assert.Equal(t, 4, state3.next["b"][0].index)
+	assert.Equal(t, 1, len(state3.next["a"]))
+	assert.Equal(t, 1, len(state3.next["b"]))
 
-	d := c.next["b"][0]
-	assert.True(t, d.next["a"][0].positions.equal(newSet(1, 2, 3, 4)))
-	assert.True(t, d.next["b"][0].positions.equal(newSet(1, 2, 3)))
+	state4 := state3.next["b"][0]
+	assert.Equal(t, 2, state4.next["a"][0].index)
+	assert.Equal(t, 1, len(state4.next["a"]))
+	assert.Equal(t, 1, len(state4.next["b"]))
+	assert.Equal(t, 1, state4.next["b"][0].index)
 }
 
 func TestTransducerFinal(t *testing.T) {
@@ -46,15 +54,16 @@ func TestTransducerFinal(t *testing.T) {
 func TestSameInputTape(t *testing.T) {
 	tr := buildTransducer(`<a,b>+<a,c>+<a,d>`)
 
-	a := tr.start
-	assert.True(t, a.positions.equal(newSet(1, 2, 3)))
-	assert.Equal(t, 1, len(a.out))
-	assert.Equal(t, map[string][]string{"a": []string{"b", "c", "d"}}, a.out)
+	state1 := tr.start
+	assert.Equal(t, 1, state1.index)
+	assert.Equal(t, 1, len(state1.out))
+	assert.Equal(t, map[string][]string{"a": []string{"b", "c", "d"}}, state1.out)
 
-	assert.Equal(t, 1, len(a.next))
-	assert.Equal(t, 3, len(a.next["a"]))
+	assert.Equal(t, 1, len(state1.next))
+	assert.Equal(t, 3, len(state1.next["a"]))
 
-	b := a.next["a"]
-	assert.True(t, b[0] == b[1] && b[1] == b[2])
-	assert.True(t, b[0].positions.equal(newSet(4)))
+	next := state1.next["a"]
+	assert.True(t, next[0] == next[1] && next[1] == next[2])
+	assert.Equal(t, 2, next[0].index)
+	assert.True(t, next[0].final)
 }
