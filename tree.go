@@ -124,24 +124,42 @@ func buildTree(raw string) *tree {
 		char := string(raw[position])
 		switch char {
 		case "<":
-			var s, in, out string
+			var characters []string
 			for {
 				position += 1
 				char = string(raw[position])
 				if char == "," {
-					in = s
-					s = ""
-					continue
-				}
-				if char == ">" {
-					out = s
 					break
 				}
-				s += char
+				characters = append(characters, char)
 			}
 
-			nodeStack.Push(t.newLeafNode(in, out, index))
+			var out string
+			for char != ">" {
+				position += 1
+				char = string(raw[position])
+				if char == ">" {
+					break
+				}
+				out += char
+			}
+
+			// add first with output
+			c := characters[0]
+			characters = characters[1:]
+			nodeStack.Push(t.newLeafNode(c, out, index))
 			index += 1
+
+			for len(characters) != 0 {
+				c = characters[0]
+				characters = characters[1:]
+
+				right := t.newLeafNode(c, "", index)
+				index += 1
+
+				left := nodeStack.Pop().(*node)
+				nodeStack.Push(t.newOperatorNode(".", left, right))
+			}
 
 		case "(", "+", ".":
 			operatorStack.Push(char)

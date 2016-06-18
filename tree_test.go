@@ -50,3 +50,42 @@ func TestFinal(t *testing.T) {
 
 	assert.Equal(t, 6, final)
 }
+
+func TestMulticharFollow(t *testing.T) {
+	regex := `<abc,xy>+<bca,zz>`
+	follow := buildTree(regex).follow
+
+	assert.True(t, follow[1].equal(newSet(2)))
+	assert.True(t, follow[2].equal(newSet(3)))
+	assert.True(t, follow[3].equal(newSet(7)))
+	assert.True(t, follow[4].equal(newSet(5)))
+	assert.True(t, follow[5].equal(newSet(6)))
+	assert.True(t, follow[6].equal(newSet(7)))
+
+	_, isSet := follow[7]
+	assert.False(t, isSet)
+}
+
+func TestMulticharRootFirst(t *testing.T) {
+	regex := `<abc,xy>+<bca,zz>`
+	rootFirst := buildTree(regex).rootFirst
+
+	assert.True(t, rootFirst.equal(newSet(1, 4)))
+}
+
+func TestMulticharAlphabet(t *testing.T) {
+	regex := `<abc,xy>+<bca,zz>`
+	alphabet := buildTree(regex).alphabet
+
+	expected := []*pair{
+		&pair{"a", "xy"},
+		&pair{"b", ""},
+		&pair{"c", ""},
+		&pair{"b", "zz"},
+		&pair{"a", ""},
+	}
+
+	for i, charPair := range expected {
+		assert.True(t, charPair.equal(alphabet[i]))
+	}
+}
