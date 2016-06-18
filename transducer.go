@@ -38,8 +38,17 @@ func (ss *tStates) get(positions *set) *tState {
 	return nil
 }
 
+func (ss *tStates) getAll() []*tState {
+	var all []*tState
+	for _, s := range ss.all {
+		all = append(all, s)
+	}
+	return all
+}
+
 type transducer struct {
-	start *tState
+	start  *tState
+	states []*tState
 }
 
 func buildTransducer(raw string) *transducer {
@@ -87,5 +96,6 @@ func buildTransducer(raw string) *transducer {
 			}
 		}
 	}
+	newTransducer.states = states.getAll()
 	return newTransducer
 }

@@ -108,3 +108,22 @@ func TestMulticharInputTransducer(t *testing.T) {
 	state6 := state5.next["a"][0]
 	assert.True(t, state6.final)
 }
+
+func TestAllStates(t *testing.T) {
+	tr := buildTransducer(`<abc,xy>+<aca,zz>`)
+
+	assert.Equal(t, 6, len(tr.states))
+
+	var missingIndex bool
+	for i := 1; i <= 6; i++ {
+		for _, s := range tr.states {
+			if s.index == i {
+				missingIndex = false
+				break
+			}
+			missingIndex = true
+		}
+	}
+
+	assert.False(t, missingIndex)
+}
