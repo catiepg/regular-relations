@@ -35,9 +35,9 @@ func TestSymbols(t *testing.T) {
 	symbols := buildTree(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`).symbols
 
 	assert.Equal(t, 6, len(symbols))
-	assert.True(t, symbols[1].equal(&pair{in: "a", out: ""}))
-	assert.True(t, symbols[2].equal(&pair{in: "b", out: ""}))
-	assert.True(t, symbols[6].equal(&pair{in: "!", out: ""}))
+	assert.True(t, symbols[1].equal(&element{in: "a", out: ""}))
+	assert.True(t, symbols[2].equal(&element{in: "b", out: ""}))
+	assert.True(t, symbols[6].equal(&element{in: "!", out: ""}))
 }
 
 func TestFinal(t *testing.T) {
@@ -69,12 +69,12 @@ func TestMulticharRootFirst(t *testing.T) {
 func TestMulticharAlphabet(t *testing.T) {
 	alphabet := buildTree(`<abc,xy>+<bca,zz>`).alphabet
 
-	expected := []*pair{
-		&pair{"a", "xy"},
-		&pair{"b", ""},
-		&pair{"c", ""},
-		&pair{"b", "zz"},
-		&pair{"a", ""},
+	expected := []*element{
+		&element{"a", "xy"},
+		&element{"b", ""},
+		&element{"c", ""},
+		&element{"b", "zz"},
+		&element{"a", ""},
 	}
 
 	for i, charPair := range expected {

@@ -1,19 +1,17 @@
 package relations
 
-import (
-	"github.com/oleiade/lane"
-)
+import "github.com/oleiade/lane"
 
-type pair struct {
+type element struct {
 	in  string
 	out string
 }
 
-func (p *pair) contain(in, out string) bool {
+func (p *element) contain(in, out string) bool {
 	return p.in == in && p.out == out
 }
 
-func (p *pair) equal(o *pair) bool {
+func (p *element) equal(o *element) bool {
 	return p.contain(o.in, o.out)
 }
 
@@ -54,24 +52,24 @@ func (n *node) annotate() {
 }
 
 type tree struct {
-	alphabet  []*pair
+	alphabet  []*element
 	rootFirst *set
 	follow    map[int]*set
-	symbols   map[int]*pair
+	symbols   map[int]*element
 	final     int
 }
 
 func newTree() *tree {
-	return &tree{follow: make(map[int]*set), symbols: make(map[int]*pair)}
+	return &tree{follow: make(map[int]*set), symbols: make(map[int]*element)}
 }
 
-func (t *tree) updateAlphabet(in, out string) *pair {
+func (t *tree) updateAlphabet(in, out string) *element {
 	for _, p := range t.alphabet {
 		if p.contain(in, out) {
 			return p
 		}
 	}
-	newPair := &pair{in: in, out: out}
+	newPair := &element{in: in, out: out}
 	// TODO: ???
 	if in != "!" {
 		t.alphabet = append(t.alphabet, newPair)

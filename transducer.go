@@ -1,10 +1,16 @@
 package relations
 
 // TODO: handle epsilon and empty set as input - 0 and 1
+type output struct {
+	state *tState
+	out   string
+}
+
 type tState struct {
 	index int
-	next  map[string][]*tState
-	out   map[string][]string
+	next  map[string][]*output
+	// next  map[string][]*tState
+	// out   map[string][]string
 	final bool
 }
 
@@ -20,8 +26,9 @@ func (ss *tStates) add(positions *set) *tState {
 	ss.index += 1
 	state := &tState{
 		index: ss.index,
-		next:  make(map[string][]*tState),
-		out:   make(map[string][]string),
+		next:  make(map[string][]*output),
+		// next:  make(map[string][]*tState),
+		// out:   make(map[string][]string),
 	}
 	ss.all[ss.index] = state
 	ss.positions[ss.index] = positions
@@ -91,8 +98,10 @@ func buildTransducer(raw string) *transducer {
 
 			// Add transitions
 			if nextState != nil {
-				state.next[symb.in] = append(state.next[symb.in], nextState)
-				state.out[symb.in] = append(state.out[symb.in], symb.out)
+				o := &output{state: nextState, out: symb.out}
+				state.next[symb.in] = append(state.next[symb.in], o)
+				// state.next[symb.in] = append(state.next[symb.in], nextState)
+				// state.out[symb.in] = append(state.out[symb.in], symb.out)
 			}
 		}
 	}
