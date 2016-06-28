@@ -2,6 +2,7 @@ package relations
 
 import (
 	"bytes"
+	"io"
 
 	"github.com/oleiade/lane"
 )
@@ -18,16 +19,16 @@ func (p *pair) equal(o *pair) bool {
 
 type sState struct {
 	remainingPairs []*pair
-	next           map[string]*sState
-	out            map[string]string
+	next           map[rune]*sState
+	out            map[rune]string
 	final          bool
 	finalOut       []string
 }
 
 func newSState() *sState {
 	return &sState{
-		next: make(map[string]*sState),
-		out:  make(map[string]string),
+		next: make(map[rune]*sState),
+		out:  make(map[rune]string),
 	}
 }
 
@@ -88,14 +89,14 @@ func (s *subsequential) get(input string) ([]string, bool) {
 	var output string
 
 	for _, symbol := range input {
-		symb := string(symbol)
-		nextNode, ok := node.next[symb]
+		// symb := string(symbol)
+		nextNode, ok := node.next[symbol]
 
 		if !ok {
 			return nil, false
 		}
 
-		output += node.out[symb]
+		output += node.out[symbol]
 		node = nextNode
 	}
 
@@ -111,8 +112,11 @@ func (s *subsequential) get(input string) ([]string, bool) {
 	return result, true
 }
 
-func buildSubsequential(raw string) *subsequential {
-	tr := buildTransducer(raw)
+func buildSubsequential(source io.Reader) (*subsequential, error) {
+	tr, err := buildTransducer(source)
+	if err != nil {
+		return nil, err
+	}
 
 	var allStates []*sState
 	stateQueue := lane.NewQueue()
@@ -134,7 +138,7 @@ func buildSubsequential(raw string) *subsequential {
 		}
 
 		// Get groups of pairs that have states with same input symbol
-		withInput := make(map[string][]*pair)
+		withInput := make(map[rune][]*pair)
 		for _, p := range state.remainingPairs {
 			for in := range p.state.next {
 				withInput[in] = append(withInput[in], p)
@@ -187,5 +191,5 @@ func buildSubsequential(raw string) *subsequential {
 		}
 	}
 
-	return &subsequential{start: start}
+	return &subsequential{start: start}, nil
 }

@@ -1,5 +1,7 @@
 package relations
 
+import "io"
+
 // TODO: handle epsilon and empty set as input - 0 and 1
 type output struct {
 	state *tState
@@ -8,7 +10,7 @@ type output struct {
 
 type tState struct {
 	index int
-	next  map[string][]*output
+	next  map[rune][]*output
 	final bool
 }
 
@@ -24,7 +26,7 @@ func (ss *tStates) add(positions *set) *tState {
 	ss.index += 1
 	state := &tState{
 		index: ss.index,
-		next:  make(map[string][]*output),
+		next:  make(map[rune][]*output),
 	}
 	ss.all[ss.index] = state
 	ss.positions[ss.index] = positions
@@ -45,10 +47,14 @@ type transducer struct {
 	start *tState
 }
 
-func buildTransducer(raw string) *transducer {
-	t := buildTree(raw)
+func buildTransducer(source io.Reader) (*transducer, error) {
+	tree, err := buildTree(source)
+	if err != nil {
+		return nil, err
+	}
+
 	states := tStates{all: make(map[int]*tState), positions: make(map[int]*set)}
-	start := states.add(t.rootFirst)
+	start := states.add(tree.rootFirst)
 
 	newTransducer := &transducer{start: start}
 
@@ -63,12 +69,12 @@ func buildTransducer(raw string) *transducer {
 		states.marked = append(states.marked, stateIndex)
 		state := states.all[stateIndex]
 
-		for _, symb := range t.alphabet {
+		for _, symb := range tree.alphabet {
 			// Get union of follow for all positions with current symbol
 			u := newSet()
 			for position := range *states.positions[stateIndex] {
-				if t.symbols[position].equal(symb) {
-					u = u.union(t.follow[position])
+				if tree.elements[position].contain(symb.in, symb.out) {
+					u = u.union(tree.follow[position])
 				}
 			}
 
@@ -78,7 +84,7 @@ func buildTransducer(raw string) *transducer {
 			// ...otherwise create new state
 			if u.cardinality() != 0 && nextState == nil {
 				nextState = states.add(u)
-				if u.contains(t.final) {
+				if u.contains(tree.final) {
 					nextState.final = true
 				}
 			}
@@ -91,5 +97,5 @@ func buildTransducer(raw string) *transducer {
 		}
 	}
 
-	return newTransducer
+	return newTransducer, nil
 }

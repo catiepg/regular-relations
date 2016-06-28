@@ -1,83 +1,91 @@
 package relations
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
 func TestFirstPos(t *testing.T) {
-	rootFirst := buildTree(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`).rootFirst
+	source := strings.NewReader(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
+	tree, _ := buildTree(source)
 
-	assert.True(t, rootFirst.equal(newSet(1, 2, 3)))
+	assert.True(t, tree.rootFirst.equal(newSet(1, 2, 3)))
 }
 
 func TestFollowPos(t *testing.T) {
-	follow := buildTree(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`).follow
+	source := strings.NewReader(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
+	tree, _ := buildTree(source)
 
-	assert.True(t, follow[1].equal(newSet(1, 2, 3)))
-	assert.True(t, follow[2].equal(newSet(1, 2, 3)))
-	assert.True(t, follow[3].equal(newSet(4)))
-	assert.True(t, follow[4].equal(newSet(5)))
-	assert.True(t, follow[5].equal(newSet(6)))
+	assert.True(t, tree.follow[1].equal(newSet(1, 2, 3)))
+	assert.True(t, tree.follow[2].equal(newSet(1, 2, 3)))
+	assert.True(t, tree.follow[3].equal(newSet(4)))
+	assert.True(t, tree.follow[4].equal(newSet(5)))
+	assert.True(t, tree.follow[5].equal(newSet(6)))
 
-	_, isSet := follow[6]
+	_, isSet := tree.follow[6]
 	assert.False(t, isSet)
 }
 
 func TestAlphabet(t *testing.T) {
-	alphabet := buildTree(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`).alphabet
+	source := strings.NewReader(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
+	tree, _ := buildTree(source)
 
-	assert.Equal(t, 2, len(alphabet))
+	assert.Equal(t, 2, len(tree.alphabet))
 }
 
 func TestSymbols(t *testing.T) {
-	symbols := buildTree(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`).symbols
+	source := strings.NewReader(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
+	tree, _ := buildTree(source)
 
-	assert.Equal(t, 6, len(symbols))
-	assert.True(t, symbols[1].equal(&element{in: "a", out: ""}))
-	assert.True(t, symbols[2].equal(&element{in: "b", out: ""}))
-	assert.True(t, symbols[6].equal(&element{in: "!", out: ""}))
+	assert.Equal(t, 6, len(tree.elements))
+	assert.True(t, tree.elements[1].contain('a', ""))
+	assert.True(t, tree.elements[2].contain('b', ""))
+	assert.True(t, tree.elements[6].contain('!', ""))
 }
 
 func TestFinal(t *testing.T) {
-	final := buildTree(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`).final
+	source := strings.NewReader(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
+	tree, _ := buildTree(source)
 
-	assert.Equal(t, 6, final)
+	assert.Equal(t, 6, tree.final)
 }
 
 func TestMulticharFollow(t *testing.T) {
-	follow := buildTree(`<abc,xy>+<bca,zz>`).follow
+	source := strings.NewReader(`<abc,xy>+<bca,zz>`)
+	tree, _ := buildTree(source)
 
-	assert.True(t, follow[1].equal(newSet(2)))
-	assert.True(t, follow[2].equal(newSet(3)))
-	assert.True(t, follow[3].equal(newSet(7)))
-	assert.True(t, follow[4].equal(newSet(5)))
-	assert.True(t, follow[5].equal(newSet(6)))
-	assert.True(t, follow[6].equal(newSet(7)))
+	assert.True(t, tree.follow[1].equal(newSet(2)))
+	assert.True(t, tree.follow[2].equal(newSet(3)))
+	assert.True(t, tree.follow[3].equal(newSet(7)))
+	assert.True(t, tree.follow[4].equal(newSet(5)))
+	assert.True(t, tree.follow[5].equal(newSet(6)))
+	assert.True(t, tree.follow[6].equal(newSet(7)))
 
-	_, isSet := follow[7]
+	_, isSet := tree.follow[7]
 	assert.False(t, isSet)
 }
 
 func TestMulticharRootFirst(t *testing.T) {
-	rootFirst := buildTree(`<abc,xy>+<bca,zz>`).rootFirst
+	source := strings.NewReader(`<abc,xy>+<bca,zz>`)
+	tree, _ := buildTree(source)
 
-	assert.True(t, rootFirst.equal(newSet(1, 4)))
+	assert.True(t, tree.rootFirst.equal(newSet(1, 4)))
 }
 
 func TestMulticharAlphabet(t *testing.T) {
-	alphabet := buildTree(`<abc,xy>+<bca,zz>`).alphabet
+	source := strings.NewReader(`<abc,xy>+<bca,zz>`)
+	tree, _ := buildTree(source)
 
-	expected := []*element{
-		&element{"a", "xy"},
-		&element{"b", ""},
-		&element{"c", ""},
-		&element{"b", "zz"},
-		&element{"a", ""},
+	expected := []struct {
+		in  rune
+		out string
+	}{
+		{'a', "xy"}, {'b', ""}, {'c', ""}, {'b', "zz"}, {'a', ""},
 	}
 
-	for i, charPair := range expected {
-		assert.True(t, charPair.equal(alphabet[i]))
+	for i, o := range expected {
+		assert.True(t, tree.alphabet[i].contain(o.in, o.out))
 	}
 }

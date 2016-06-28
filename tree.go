@@ -1,22 +1,24 @@
 package relations
 
-import "github.com/oleiade/lane"
+import (
+	"bufio"
+	"fmt"
+	"io"
+
+	"github.com/oleiade/lane"
+)
 
 type element struct {
-	in  string
+	in  rune
 	out string
 }
 
-func (p *element) contain(in, out string) bool {
+func (p *element) contain(in rune, out string) bool {
 	return p.in == in && p.out == out
 }
 
-func (p *element) equal(o *element) bool {
-	return p.contain(o.in, o.out)
-}
-
 type node struct {
-	operator string
+	operator rune
 	left     *node
 	right    *node
 	index    int
@@ -28,15 +30,15 @@ type node struct {
 // Computes nullable, firstPos and lastPos
 func (n *node) annotate() {
 	switch n.operator {
-	case "*":
+	case '*':
 		n.nullable = true
 		n.first = n.left.first.clone()
 		n.last = n.left.last.clone()
-	case "+":
+	case '+':
 		n.nullable = n.right.nullable || n.left.nullable
 		n.first = n.left.first.union(n.right.first)
 		n.last = n.left.last.union(n.right.last)
-	case ".":
+	case '.':
 		n.nullable = n.right.nullable && n.left.nullable
 		if n.left.nullable {
 			n.first = n.left.first.union(n.right.first)
@@ -51,19 +53,19 @@ func (n *node) annotate() {
 	}
 }
 
-type tree struct {
+type parseTree struct {
 	alphabet  []*element
 	rootFirst *set
 	follow    map[int]*set
-	symbols   map[int]*element
+	elements  map[int]*element
 	final     int
 }
 
-func newTree() *tree {
-	return &tree{follow: make(map[int]*set), symbols: make(map[int]*element)}
+func newTree() *parseTree {
+	return &parseTree{follow: make(map[int]*set), elements: make(map[int]*element)}
 }
 
-func (t *tree) updateAlphabet(in, out string) *element {
+func (t *parseTree) updateAlphabet(in rune, out string) *element {
 	for _, p := range t.alphabet {
 		if p.contain(in, out) {
 			return p
@@ -71,22 +73,23 @@ func (t *tree) updateAlphabet(in, out string) *element {
 	}
 	newPair := &element{in: in, out: out}
 	// TODO: ???
-	if in != "!" {
+	if in != '!' {
 		t.alphabet = append(t.alphabet, newPair)
 	}
 	return newPair
 }
 
-func (t *tree) newLeafNode(in, out string, index int) *node {
-	t.symbols[index] = t.updateAlphabet(in, out)
+func (t *parseTree) newLeafNode(in rune, out string, index int) *node {
+	t.elements[index] = t.updateAlphabet(in, out)
 	newNode := &node{index: index, first: newSet(index), last: newSet(index)}
-	if in == "" && out == "" {
+	// TODO: if in == "" && out == "" {
+	if in == 0 && out == "" {
 		newNode.nullable = true
 	}
 	return newNode
 }
 
-func (t *tree) newOperatorNode(operator string, left, right *node) *node {
+func (t *parseTree) newOperatorNode(operator rune, left, right *node) *node {
 	newNode := &node{operator: operator, left: left, right: right}
 	newNode.annotate()
 	t.updateFollow(newNode)
@@ -94,13 +97,13 @@ func (t *tree) newOperatorNode(operator string, left, right *node) *node {
 }
 
 // Updates followPos with information from newly created node
-func (t *tree) updateFollow(n *node) {
+func (t *parseTree) updateFollow(n *node) {
 	switch n.operator {
-	case "*":
+	case '*':
 		for position := range *n.last {
 			t.follow[position] = n.first.union(t.follow[position])
 		}
-	case ".":
+	case '.':
 		for position := range *n.left.last {
 			t.follow[position] = n.right.first.union(t.follow[position])
 		}
@@ -109,89 +112,106 @@ func (t *tree) updateFollow(n *node) {
 
 // Builds parse tree from regular expression while computing
 // nullable, firstPos, lastPos and followPos
-func buildTree(raw string) *tree {
+func buildTree(source io.Reader) (*parseTree, error) {
 	t := newTree()
 
 	nodeStack := lane.NewStack()
 	operatorStack := lane.NewStack()
+	nodeIndex := 1
 
-	position := 0
-	index := 1
+	reader := bufio.NewReader(source)
 
-	for position < len(raw) {
-		char := string(raw[position])
+	for {
+		char, readCount, err := reader.ReadRune()
+		if readCount == 0 {
+			break
+		} else if err != nil {
+			return nil, err
+		}
+
 		switch char {
-		case "<":
-			var characters []string
+		case '<':
+			var characters []rune
 			for {
-				position += 1
-				char = string(raw[position])
-				if char == "," {
+				char, readCount, err = reader.ReadRune()
+				if readCount == 0 {
+					return nil, fmt.Errorf("Parse error")
+				} else if err != nil {
+					return nil, err
+				}
+
+				if char == ',' {
 					break
 				}
+
 				characters = append(characters, char)
 			}
 
-			var out string
-			for char != ">" {
-				position += 1
-				char = string(raw[position])
-				if char == ">" {
+			var out []rune
+			for {
+				char, readCount, err = reader.ReadRune()
+				if readCount == 0 {
+					return nil, fmt.Errorf("Parse error")
+				} else if err != nil {
+					return nil, err
+				}
+
+				if char == '>' {
 					break
 				}
-				out += char
+				out = append(out, char)
 			}
 
-			// add first with output
+			// Add first with output
 			c := characters[0]
 			characters = characters[1:]
-			nodeStack.Push(t.newLeafNode(c, out, index))
-			index += 1
+			nodeStack.Push(t.newLeafNode(c, string(out), nodeIndex))
+			nodeIndex += 1
 
+			// Add the rest with concatenation
 			for len(characters) != 0 {
 				c = characters[0]
 				characters = characters[1:]
 
-				right := t.newLeafNode(c, "", index)
-				index += 1
+				right := t.newLeafNode(c, "", nodeIndex)
+				nodeIndex += 1
 
 				left := nodeStack.Pop().(*node)
-				nodeStack.Push(t.newOperatorNode(".", left, right))
+				nodeStack.Push(t.newOperatorNode('.', left, right))
 			}
 
-		case "(", "+", ".":
+		case '(', '+', '.':
 			operatorStack.Push(char)
 
-		case ")":
-			operator := operatorStack.Pop().(string)
-			for operator != "(" {
+		case ')':
+			operator := operatorStack.Pop().(rune)
+			for operator != '(' {
 				right := nodeStack.Pop().(*node)
 				left := nodeStack.Pop().(*node)
 				nodeStack.Push(t.newOperatorNode(operator, left, right))
-				operator = operatorStack.Pop().(string)
+				operator = operatorStack.Pop().(rune)
 			}
 
-		case "*":
+		case '*':
 			operand := nodeStack.Pop().(*node)
 			nodeStack.Push(t.newOperatorNode(char, operand, nil))
 		}
-		position += 1
 	}
 
 	for !operatorStack.Empty() {
-		operator := operatorStack.Pop().(string)
+		operator := operatorStack.Pop().(rune)
 		right := nodeStack.Pop().(*node)
 		left := nodeStack.Pop().(*node)
 		nodeStack.Push(t.newOperatorNode(operator, left, right))
 	}
 
 	// Add endmarker character
-	right := t.newLeafNode("!", "", index)
+	right := t.newLeafNode('!', "", nodeIndex)
 	left := nodeStack.Pop().(*node)
-	root := t.newOperatorNode(".", left, right)
+	root := t.newOperatorNode('.', left, right)
 
-	t.final = index
+	t.final = nodeIndex
 
 	t.rootFirst = root.first
-	return t
+	return t, nil
 }
