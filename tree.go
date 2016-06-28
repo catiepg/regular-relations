@@ -2,11 +2,18 @@ package relations
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 
 	"github.com/oleiade/lane"
 )
+
+type ParseError struct {
+	msg string
+}
+
+func (err ParseError) Error() string {
+	return err.msg
+}
 
 type element struct {
 	in  rune
@@ -61,22 +68,8 @@ type parseTree struct {
 	final     int
 }
 
-func newTree() *parseTree {
+func newParseTree() *parseTree {
 	return &parseTree{follow: make(map[int]*set), elements: make(map[int]*element)}
-}
-
-func (t *parseTree) updateAlphabet(in rune, out string) *element {
-	for _, p := range t.alphabet {
-		if p.contain(in, out) {
-			return p
-		}
-	}
-	newPair := &element{in: in, out: out}
-	// TODO: ???
-	if in != '!' {
-		t.alphabet = append(t.alphabet, newPair)
-	}
-	return newPair
 }
 
 func (t *parseTree) newLeafNode(in rune, out string, index int) *node {
@@ -96,6 +89,20 @@ func (t *parseTree) newOperatorNode(operator rune, left, right *node) *node {
 	return newNode
 }
 
+func (t *parseTree) updateAlphabet(in rune, out string) *element {
+	for _, p := range t.alphabet {
+		if p.contain(in, out) {
+			return p
+		}
+	}
+	newPair := &element{in: in, out: out}
+	// TODO: ???
+	if in != '!' {
+		t.alphabet = append(t.alphabet, newPair)
+	}
+	return newPair
+}
+
 // Updates followPos with information from newly created node
 func (t *parseTree) updateFollow(n *node) {
 	switch n.operator {
@@ -112,8 +119,8 @@ func (t *parseTree) updateFollow(n *node) {
 
 // Builds parse tree from regular expression while computing
 // nullable, firstPos, lastPos and followPos
-func buildTree(source io.Reader) (*parseTree, error) {
-	t := newTree()
+func NewTree(source io.Reader) (*parseTree, error) {
+	t := newParseTree()
 
 	nodeStack := lane.NewStack()
 	operatorStack := lane.NewStack()
@@ -122,8 +129,8 @@ func buildTree(source io.Reader) (*parseTree, error) {
 	reader := bufio.NewReader(source)
 
 	for {
-		char, readCount, err := reader.ReadRune()
-		if readCount == 0 {
+		char, _, err := reader.ReadRune()
+		if err == io.EOF {
 			break
 		} else if err != nil {
 			return nil, err
@@ -131,53 +138,38 @@ func buildTree(source io.Reader) (*parseTree, error) {
 
 		switch char {
 		case '<':
-			var characters []rune
+			var inputCharacters, characters []rune
 			for {
-				char, readCount, err = reader.ReadRune()
-				if readCount == 0 {
-					return nil, fmt.Errorf("Parse error")
+				char, _, err = reader.ReadRune()
+				if err == io.EOF {
+					return nil, ParseError{"Incorrect input"}
 				} else if err != nil {
 					return nil, err
 				}
 
 				if char == ',' {
+					inputCharacters = characters
+					characters = []rune{}
+					continue
+				} else if char == '>' {
 					break
 				}
 
 				characters = append(characters, char)
 			}
 
-			var out []rune
-			for {
-				char, readCount, err = reader.ReadRune()
-				if readCount == 0 {
-					return nil, fmt.Errorf("Parse error")
-				} else if err != nil {
-					return nil, err
-				}
-
-				if char == '>' {
-					break
-				}
-				out = append(out, char)
-			}
-
 			// Add first with output
-			c := characters[0]
-			characters = characters[1:]
-			nodeStack.Push(t.newLeafNode(c, string(out), nodeIndex))
+			nodeStack.Push(t.newLeafNode(inputCharacters[0],
+				string(characters), nodeIndex))
+			inputCharacters = inputCharacters[1:]
 			nodeIndex += 1
 
 			// Add the rest with concatenation
-			for len(characters) != 0 {
-				c = characters[0]
-				characters = characters[1:]
-
+			for _, c := range inputCharacters {
 				right := t.newLeafNode(c, "", nodeIndex)
-				nodeIndex += 1
-
 				left := nodeStack.Pop().(*node)
 				nodeStack.Push(t.newOperatorNode('.', left, right))
+				nodeIndex += 1
 			}
 
 		case '(', '+', '.':

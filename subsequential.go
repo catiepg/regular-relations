@@ -80,24 +80,21 @@ func longestCommonPrefix(strs [][]rune) string {
 	return string(strs[0])
 }
 
-type subsequential struct {
+type Subsequential struct {
 	start *sState
 }
 
-func (s *subsequential) get(input string) ([]string, bool) {
+func (s *Subsequential) Get(input string) ([]string, bool) {
 	node := s.start
 	var output string
 
 	for _, symbol := range input {
-		// symb := string(symbol)
-		nextNode, ok := node.next[symbol]
-
-		if !ok {
+		if nextnode, ok := node.next[symbol]; !ok {
 			return nil, false
+		} else {
+			output += node.out[symbol]
+			node = nextnode
 		}
-
-		output += node.out[symbol]
-		node = nextNode
 	}
 
 	if !node.final {
@@ -112,8 +109,8 @@ func (s *subsequential) get(input string) ([]string, bool) {
 	return result, true
 }
 
-func buildSubsequential(source io.Reader) (*subsequential, error) {
-	tr, err := buildTransducer(source)
+func NewSubsequential(source io.Reader) (*Subsequential, error) {
+	tr, err := NewTransducer(source)
 	if err != nil {
 		return nil, err
 	}
@@ -191,5 +188,5 @@ func buildSubsequential(source io.Reader) (*subsequential, error) {
 		}
 	}
 
-	return &subsequential{start: start}, nil
+	return &Subsequential{start: start}, nil
 }

@@ -9,14 +9,14 @@ import (
 
 func TestFirstPos(t *testing.T) {
 	source := strings.NewReader(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
-	tree, _ := buildTree(source)
+	tree, _ := NewTree(source)
 
 	assert.True(t, tree.rootFirst.equal(newSet(1, 2, 3)))
 }
 
 func TestFollowPos(t *testing.T) {
 	source := strings.NewReader(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
-	tree, _ := buildTree(source)
+	tree, _ := NewTree(source)
 
 	assert.True(t, tree.follow[1].equal(newSet(1, 2, 3)))
 	assert.True(t, tree.follow[2].equal(newSet(1, 2, 3)))
@@ -30,14 +30,14 @@ func TestFollowPos(t *testing.T) {
 
 func TestAlphabet(t *testing.T) {
 	source := strings.NewReader(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
-	tree, _ := buildTree(source)
+	tree, _ := NewTree(source)
 
 	assert.Equal(t, 2, len(tree.alphabet))
 }
 
 func TestSymbols(t *testing.T) {
 	source := strings.NewReader(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
-	tree, _ := buildTree(source)
+	tree, _ := NewTree(source)
 
 	assert.Equal(t, 6, len(tree.elements))
 	assert.True(t, tree.elements[1].contain('a', ""))
@@ -47,14 +47,14 @@ func TestSymbols(t *testing.T) {
 
 func TestFinal(t *testing.T) {
 	source := strings.NewReader(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
-	tree, _ := buildTree(source)
+	tree, _ := NewTree(source)
 
 	assert.Equal(t, 6, tree.final)
 }
 
 func TestMulticharFollow(t *testing.T) {
 	source := strings.NewReader(`<abc,xy>+<bca,zz>`)
-	tree, _ := buildTree(source)
+	tree, _ := NewTree(source)
 
 	assert.True(t, tree.follow[1].equal(newSet(2)))
 	assert.True(t, tree.follow[2].equal(newSet(3)))
@@ -69,14 +69,14 @@ func TestMulticharFollow(t *testing.T) {
 
 func TestMulticharRootFirst(t *testing.T) {
 	source := strings.NewReader(`<abc,xy>+<bca,zz>`)
-	tree, _ := buildTree(source)
+	tree, _ := NewTree(source)
 
 	assert.True(t, tree.rootFirst.equal(newSet(1, 4)))
 }
 
 func TestMulticharAlphabet(t *testing.T) {
 	source := strings.NewReader(`<abc,xy>+<bca,zz>`)
-	tree, _ := buildTree(source)
+	tree, _ := NewTree(source)
 
 	expected := []struct {
 		in  rune

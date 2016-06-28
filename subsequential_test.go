@@ -9,9 +9,9 @@ import (
 
 func TestSubsequential(t *testing.T) {
 	source := strings.NewReader(`<abc,xyz>+<acc,qwe>`)
-	s, _ := buildSubsequential(source)
+	s, _ := NewSubsequential(source)
 
-	out, ok := s.get("abc")
+	out, ok := s.Get("abc")
 	assert.Equal(t, 1, len(out))
 	assert.Equal(t, "xyz", out[0])
 	assert.True(t, ok)
@@ -19,7 +19,7 @@ func TestSubsequential(t *testing.T) {
 
 func TestSubsequentialStructure(t *testing.T) {
 	source := strings.NewReader(`<abc,xyz>+<acc,qwe>`)
-	s, _ := buildSubsequential(source)
+	s, _ := NewSubsequential(source)
 
 	assert.Equal(t, 1, len(s.start.next))
 	assert.Equal(t, "", s.start.out['a'])

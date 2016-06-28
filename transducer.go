@@ -3,14 +3,14 @@ package relations
 import "io"
 
 // TODO: handle epsilon and empty set as input - 0 and 1
-type output struct {
+type tTransition struct {
 	state *tState
 	out   string
 }
 
 type tState struct {
 	index int
-	next  map[rune][]*output
+	next  map[rune][]*tTransition
 	final bool
 }
 
@@ -26,7 +26,7 @@ func (ss *tStates) add(positions *set) *tState {
 	ss.index += 1
 	state := &tState{
 		index: ss.index,
-		next:  make(map[rune][]*output),
+		next:  make(map[rune][]*tTransition),
 	}
 	ss.all[ss.index] = state
 	ss.positions[ss.index] = positions
@@ -47,16 +47,14 @@ type transducer struct {
 	start *tState
 }
 
-func buildTransducer(source io.Reader) (*transducer, error) {
-	tree, err := buildTree(source)
+func NewTransducer(source io.Reader) (*transducer, error) {
+	tree, err := NewTree(source)
 	if err != nil {
 		return nil, err
 	}
 
 	states := tStates{all: make(map[int]*tState), positions: make(map[int]*set)}
 	start := states.add(tree.rootFirst)
-
-	newTransducer := &transducer{start: start}
 
 	for {
 		if len(states.unmarked) == 0 {
@@ -91,11 +89,11 @@ func buildTransducer(source io.Reader) (*transducer, error) {
 
 			// Add transitions
 			if nextState != nil {
-				o := &output{state: nextState, out: symb.out}
+				o := &tTransition{state: nextState, out: symb.out}
 				state.next[symb.in] = append(state.next[symb.in], o)
 			}
 		}
 	}
 
-	return newTransducer, nil
+	return &transducer{start: start}, nil
 }
