@@ -9,8 +9,6 @@ type output struct {
 type tState struct {
 	index int
 	next  map[string][]*output
-	// next  map[string][]*tState
-	// out   map[string][]string
 	final bool
 }
 
@@ -27,8 +25,6 @@ func (ss *tStates) add(positions *set) *tState {
 	state := &tState{
 		index: ss.index,
 		next:  make(map[string][]*output),
-		// next:  make(map[string][]*tState),
-		// out:   make(map[string][]string),
 	}
 	ss.all[ss.index] = state
 	ss.positions[ss.index] = positions
@@ -45,17 +41,8 @@ func (ss *tStates) get(positions *set) *tState {
 	return nil
 }
 
-func (ss *tStates) getAll() []*tState {
-	var all []*tState
-	for _, s := range ss.all {
-		all = append(all, s)
-	}
-	return all
-}
-
 type transducer struct {
-	start  *tState
-	states []*tState
+	start *tState
 }
 
 func buildTransducer(raw string) *transducer {
@@ -100,11 +87,9 @@ func buildTransducer(raw string) *transducer {
 			if nextState != nil {
 				o := &output{state: nextState, out: symb.out}
 				state.next[symb.in] = append(state.next[symb.in], o)
-				// state.next[symb.in] = append(state.next[symb.in], nextState)
-				// state.out[symb.in] = append(state.out[symb.in], symb.out)
 			}
 		}
 	}
-	newTransducer.states = states.getAll()
+
 	return newTransducer
 }

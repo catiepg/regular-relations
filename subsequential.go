@@ -31,6 +31,7 @@ func newSState() *sState {
 	}
 }
 
+// Get final outputs if pair has final state
 func (ss *sState) getFinalOut() []string {
 	var finalPairs []string
 	for _, p := range ss.remainingPairs {
@@ -42,8 +43,11 @@ func (ss *sState) getFinalOut() []string {
 }
 
 func (ss *sState) hasPairs(pairs []*pair) bool {
-	if len(ss.remainingPairs) != len(pairs) ||
-		(len(ss.remainingPairs) == 0 && len(pairs) == 0) {
+	if len(ss.remainingPairs) != len(pairs) {
+		return false
+	}
+
+	if len(ss.remainingPairs) == 0 && len(pairs) == 0 {
 		return true
 	}
 
@@ -79,6 +83,34 @@ type subsequential struct {
 	start *sState
 }
 
+func (s *subsequential) get(input string) ([]string, bool) {
+	node := s.start
+	var output string
+
+	for _, symbol := range input {
+		symb := string(symbol)
+		nextNode, ok := node.next[symb]
+
+		if !ok {
+			return nil, false
+		}
+
+		output += node.out[symb]
+		node = nextNode
+	}
+
+	if !node.final {
+		return nil, false
+	}
+
+	var result []string
+	for _, o := range node.finalOut {
+		result = append(result, output+o)
+	}
+
+	return result, true
+}
+
 func buildSubsequential(raw string) *subsequential {
 	tr := buildTransducer(raw)
 
@@ -92,7 +124,9 @@ func buildSubsequential(raw string) *subsequential {
 	allStates = append(allStates, start)
 	stateQueue.Enqueue(start)
 
-	for state := stateQueue.Dequeue().(*sState); state != nil; {
+	for stateQueue.Size() != 0 {
+		state := stateQueue.Dequeue().(*sState)
+
 		// Check if state should be final and add outputs to final output
 		if final := state.getFinalOut(); len(final) != 0 {
 			state.final = true
@@ -145,10 +179,11 @@ func buildSubsequential(raw string) *subsequential {
 			if nextState == nil {
 				nextState = newSState()
 				nextState.remainingPairs = newPairs
+				allStates = append(allStates, nextState)
+				stateQueue.Enqueue(nextState)
 			}
 
 			state.next[in] = nextState
-			stateQueue.Enqueue(nextState)
 		}
 	}
 
