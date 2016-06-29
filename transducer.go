@@ -15,8 +15,8 @@ type tState struct {
 }
 
 type tStates struct {
-	all       map[int]*tState // index -> state
-	positions map[int]*set    // index -> positions
+	all       map[int]*tState // state index -> state
+	positions map[int]*set    // state index -> positions
 	unmarked  []int
 	index     int
 }
@@ -65,22 +65,31 @@ func NewTransducer(source io.Reader) (*transducer, error) {
 		states.unmarked = states.unmarked[1:]
 		state := states.all[stateIndex]
 
-		for _, symb := range tree.alphabet {
-			// Get union of follow for all positions with current symbol
-			u := newSet()
-			for position := range *states.positions[stateIndex] {
-				if tree.elements[position].contain(symb.in, symb.out) {
-					u = u.union(tree.follow[position])
+		// Get union of follow for positions in the state than correspond
+		// to the same element, instead of going through each element in the
+		// alphabet
+		followUnion := make(map[*element]*set)
+		for position := range *states.positions[stateIndex] {
+			elem := tree.elements[position]
+			if _, ok := followUnion[elem]; ok {
+				for p := range *tree.follow[position] {
+					followUnion[elem].add(p)
+				}
+			} else {
+				if tree.follow[position] != nil {
+					followUnion[elem] = tree.follow[position].clone()
 				}
 			}
+		}
 
+		for symb, union := range followUnion {
 			// Check if state with these positions already exists...
-			nextState := states.get(u)
+			nextState := states.get(union)
 
 			// ...otherwise create new state
-			if u.cardinality() != 0 && nextState == nil {
-				nextState = states.add(u)
-				if u.contains(tree.finalIndex) {
+			if nextState == nil {
+				nextState = states.add(union)
+				if union.contains(tree.finalIndex) {
 					nextState.final = true
 				}
 			}
