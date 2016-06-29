@@ -80,7 +80,7 @@ func NewTransducer(source io.Reader) (*transducer, error) {
 			// ...otherwise create new state
 			if u.cardinality() != 0 && nextState == nil {
 				nextState = states.add(u)
-				if u.contains(tree.final) {
+				if u.contains(tree.finalIndex) {
 					nextState.final = true
 				}
 			}

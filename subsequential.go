@@ -26,21 +26,18 @@ type sState struct {
 }
 
 func newSState() *sState {
-	return &sState{
-		next: make(map[rune]*sState),
-		out:  make(map[rune]string),
-	}
+	return &sState{next: make(map[rune]*sState), out: make(map[rune]string)}
 }
 
 // Get final outputs if pair has final state
 func (ss *sState) getFinalOut() []string {
-	var finalPairs []string
+	var finalRemaining []string
 	for _, p := range ss.remainingPairs {
 		if p.state.final {
-			finalPairs = append(finalPairs, p.remaining)
+			finalRemaining = append(finalRemaining, p.remaining)
 		}
 	}
-	return finalPairs
+	return finalRemaining
 }
 
 func (ss *sState) hasPairs(pairs []*pair) bool {

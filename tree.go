@@ -61,11 +61,11 @@ func (n *node) annotate() {
 }
 
 type parseTree struct {
-	alphabet  []*element
-	rootFirst *set
-	follow    map[int]*set
-	elements  map[int]*element
-	final     int
+	alphabet   []*element
+	rootFirst  *set
+	follow     map[int]*set
+	elements   map[int]*element
+	finalIndex int
 }
 
 func newParseTree() *parseTree {
@@ -202,7 +202,7 @@ func NewTree(source io.Reader) (*parseTree, error) {
 	left := nodeStack.Pop().(*node)
 	root := t.newOperatorNode('.', left, right)
 
-	t.final = nodeIndex
+	t.finalIndex = nodeIndex
 
 	t.rootFirst = root.first
 	return t, nil

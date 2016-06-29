@@ -49,7 +49,7 @@ func TestFinal(t *testing.T) {
 	source := strings.NewReader(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
 	tree, _ := NewTree(source)
 
-	assert.Equal(t, 6, tree.final)
+	assert.Equal(t, 6, tree.finalIndex)
 }
 
 func TestMulticharFollow(t *testing.T) {
