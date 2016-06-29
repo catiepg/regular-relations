@@ -17,7 +17,6 @@ type tState struct {
 type tStates struct {
 	all       map[int]*tState // index -> state
 	positions map[int]*set    // index -> positions
-	marked    []int
 	unmarked  []int
 	index     int
 }
@@ -64,7 +63,6 @@ func NewTransducer(source io.Reader) (*transducer, error) {
 		// Get next unmarked state and add it to the set of marked states
 		stateIndex := states.unmarked[0]
 		states.unmarked = states.unmarked[1:]
-		states.marked = append(states.marked, stateIndex)
 		state := states.all[stateIndex]
 
 		for _, symb := range tree.alphabet {
