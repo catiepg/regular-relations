@@ -17,13 +17,13 @@ type tState struct {
 // TODO: instead of unmarked - queue
 type tStates struct {
 	all       map[int]*tState // state index -> state
-	positions map[int]*set    // state index -> positions
+	positions map[int]set     // state index -> positions
 	reversed  map[uint][]int  // set hash -> state index
 	unmarked  []int
 	index     int
 }
 
-func (ss *tStates) add(positions *set) *tState {
+func (ss *tStates) add(positions set) *tState {
 	ss.index += 1
 	state := &tState{
 		index: ss.index,
@@ -36,7 +36,7 @@ func (ss *tStates) add(positions *set) *tState {
 	return state
 }
 
-func (ss *tStates) get(positions *set) *tState {
+func (ss *tStates) get(positions set) *tState {
 	if indexes, ok := ss.reversed[positions.hash()]; ok {
 		if len(indexes) == 1 {
 			return ss.all[indexes[0]]
@@ -56,14 +56,14 @@ type transducer struct {
 }
 
 func NewTransducer(source io.Reader) (*transducer, error) {
-	tree, err := NewTree(source)
+	meta, err := ComputeRegExpMetadata(source)
 	if err != nil {
 		return nil, err
 	}
 
 	states := tStates{all: make(map[int]*tState),
-		positions: make(map[int]*set), reversed: make(map[uint][]int)}
-	start := states.add(tree.rootFirst)
+		positions: make(map[int]set), reversed: make(map[uint][]int)}
+	start := states.add(meta.rootFirst)
 
 	for {
 		if len(states.unmarked) == 0 {
@@ -78,16 +78,16 @@ func NewTransducer(source io.Reader) (*transducer, error) {
 		// Get union of follow for positions in the state than correspond
 		// to the same element, instead of going through each element in the
 		// alphabet
-		followUnion := make(map[*element]*set)
-		for position := range *states.positions[stateIndex] {
-			elem := tree.elements[position]
+		followUnion := make(map[rule]set)
+		for position := range states.positions[stateIndex] {
+			elem := meta.rules[position]
 			if _, ok := followUnion[elem]; ok {
-				for p := range *tree.follow[position] {
+				for p := range meta.follow[position] {
 					followUnion[elem].add(p)
 				}
 			} else {
-				if tree.follow[position] != nil {
-					followUnion[elem] = tree.follow[position].clone()
+				if meta.follow[position] != nil {
+					followUnion[elem] = meta.follow[position].clone()
 				}
 			}
 		}
@@ -99,7 +99,7 @@ func NewTransducer(source io.Reader) (*transducer, error) {
 			// ...otherwise create new state
 			if nextState == nil {
 				nextState = states.add(union)
-				if union.contains(tree.finalIndex) {
+				if union.contains(meta.finalIndex) {
 					nextState.final = true
 				}
 			}
