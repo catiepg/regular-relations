@@ -3,6 +3,7 @@ package relations
 import (
 	"bytes"
 	"io"
+	"sort"
 
 	"github.com/oleiade/lane"
 )
@@ -13,8 +14,25 @@ type pair struct {
 }
 
 func (p *pair) equal(o *pair) bool {
-	// TODO: compare pointers or index or...???
 	return p.state.index == o.state.index && p.remaining == o.remaining
+}
+
+type pairs []*pair
+
+func (ps *pairs) Len() int {
+	return len(*ps)
+}
+
+func (ps *pairs) Less(i, j int) bool {
+	if (*ps)[i].state.index == (*ps)[j].state.index {
+		return (*ps)[i].remaining < (*ps)[j].remaining
+	}
+
+	return (*ps)[i].state.index < (*ps)[j].state.index
+}
+
+func (ps *pairs) Swap(i, j int) {
+	(*ps)[i], (*ps)[j] = (*ps)[j], (*ps)[i]
 }
 
 type sState struct {
@@ -23,6 +41,7 @@ type sState struct {
 	out            map[rune]string
 	final          bool
 	finalOut       []string
+	isVisited      bool
 }
 
 func newSState() *sState {
@@ -40,18 +59,18 @@ func (ss *sState) getFinalOut() []string {
 	return finalRemaining
 }
 
-func (ss *sState) hasPairs(pairs []*pair) bool {
-	if len(ss.remainingPairs) != len(pairs) {
+func (ss *sState) hasPairs(ps []*pair) bool {
+	if len(ss.remainingPairs) != len(ps) {
 		return false
 	}
 
-	if len(ss.remainingPairs) == 0 && len(pairs) == 0 {
+	if len(ss.remainingPairs) == 0 && len(ps) == 0 {
 		return true
 	}
 
 	var found bool
 	for _, p := range ss.remainingPairs {
-		for _, o := range pairs {
+		for _, o := range ps {
 			if p.equal(o) {
 				found = true
 				break
@@ -60,6 +79,43 @@ func (ss *sState) hasPairs(pairs []*pair) bool {
 		}
 	}
 	return found
+}
+
+type cacheMap struct {
+	next  map[pair]*cacheMap
+	state *sState
+}
+
+func newCacheMap() *cacheMap {
+	return &cacheMap{next: make(map[pair]*cacheMap)}
+}
+
+type stateCache struct {
+	root *cacheMap
+}
+
+func newStateCache() *stateCache {
+	return &stateCache{root: newCacheMap()}
+}
+
+func (sc *stateCache) getOrCreateState(m *cacheMap, ps []*pair) *sState {
+	if len(ps) == 0 {
+		if m.state == nil {
+			m.state = newSState()
+		}
+		return m.state
+	}
+
+	next, ok := m.next[*ps[0]]
+	if !ok {
+		next = newCacheMap()
+		m.next[*ps[0]] = next
+	}
+	return sc.getOrCreateState(next, ps[1:])
+}
+
+func (sc *stateCache) getOrCreate(ps []*pair) *sState {
+	return sc.getOrCreateState(sc.root, ps)
 }
 
 func longestCommonPrefix(strs [][]rune) string {
@@ -115,8 +171,12 @@ func NewSubsequential(source io.Reader) (*Subsequential, error) {
 	var allStates []*sState
 	stateQueue := lane.NewQueue()
 
+	sc := newStateCache()
+
+	var initPairs pairs
 	i := &pair{state: tr.start, remaining: ""}
-	start := newSState()
+	initPairs = append(initPairs, i)
+	start := sc.getOrCreate(initPairs)
 	start.remainingPairs = append(start.remainingPairs, i)
 
 	allStates = append(allStates, start)
@@ -139,12 +199,12 @@ func NewSubsequential(source io.Reader) (*Subsequential, error) {
 			}
 		}
 
-		for in, pairs := range withInput {
+		for in, ps := range withInput {
 			// Get all remaining+out strings from states with given input
 			// and map them to corresponding next state
 			var outputs [][]rune
 			nextStates := make(map[int]*tState)
-			for _, p := range pairs {
+			for _, p := range ps {
 				remaining := bytes.Runes([]byte(p.remaining))
 				for _, o := range p.state.next[in] {
 					out := append(remaining, bytes.Runes([]byte(o.out))...)
@@ -156,26 +216,23 @@ func NewSubsequential(source io.Reader) (*Subsequential, error) {
 			state.out[in] = longestCommonPrefix(outputs) // longest prefix
 
 			// Create new state pairs by removing lcp from outputs
-			var newPairs []*pair
+			var newPairs pairs
 			for i, out := range outputs {
 				newPairs = append(newPairs, &pair{
 					state:     nextStates[i],
 					remaining: string(out[len(state.out[in]):]),
 				})
 			}
+			sort.Sort(&newPairs)
 
 			// Check if state with such states exists...
-			var nextState *sState
-			for _, s := range allStates {
-				if s.hasPairs(newPairs) {
-					nextState = s
-					break
-				}
-			}
+			nextState := sc.getOrCreate(newPairs)
 
 			// ...and create new one if necessary
-			if nextState == nil {
-				nextState = newSState()
+			// if nextState == nil {
+			// nextState = newSState()
+			if !nextState.isVisited {
+				nextState.isVisited = true
 				nextState.remainingPairs = newPairs
 				allStates = append(allStates, nextState)
 				stateQueue.Enqueue(nextState)
@@ -184,6 +241,5 @@ func NewSubsequential(source io.Reader) (*Subsequential, error) {
 			state.next[in] = nextState
 		}
 	}
-
 	return &Subsequential{start: start}, nil
 }

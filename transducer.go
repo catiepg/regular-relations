@@ -14,6 +14,7 @@ type tState struct {
 	final bool
 }
 
+// TODO: instead of unmarked - queue
 type tStates struct {
 	all       map[int]*tState // state index -> state
 	positions map[int]*set    // state index -> positions
@@ -110,6 +111,5 @@ func NewTransducer(source io.Reader) (*transducer, error) {
 			}
 		}
 	}
-
 	return &transducer{start: start}, nil
 }
