@@ -11,7 +11,7 @@ func TestTransducer(t *testing.T) {
 	source := strings.NewReader(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
 	tr, _ := NewTransducer(source)
 
-	state1 := tr.start
+	state1 := tr.root
 	assert.Equal(t, 1, state1.index)
 	assert.Equal(t, 2, state1.next['a'][0].state.index)
 	assert.Equal(t, 1, state1.next['b'][0].state.index)
@@ -41,7 +41,7 @@ func TestTransducerFinal(t *testing.T) {
 	source := strings.NewReader(`(<a,>+<b,>)*.<a,>.<b,>.<b,>`)
 	tr, _ := NewTransducer(source)
 
-	a := tr.start
+	a := tr.root
 	assert.False(t, a.final)
 
 	b := a.next['a'][0].state
@@ -58,7 +58,7 @@ func TestSameInputTape(t *testing.T) {
 	source := strings.NewReader(`<a,b>+<a,c>+<a,d>`)
 	tr, _ := NewTransducer(source)
 
-	state1 := tr.start
+	state1 := tr.root
 	assert.Equal(t, 1, state1.index)
 
 	assert.Equal(t, 1, len(state1.next))
@@ -74,7 +74,7 @@ func TestMulticharInputTransducer(t *testing.T) {
 	source := strings.NewReader(`<abc,xy>+<aca,zz>`)
 	tr, _ := NewTransducer(source)
 
-	state1 := tr.start
+	state1 := tr.root
 	assert.Equal(t, 1, state1.index)
 	assert.Equal(t, 2, len(state1.next['a']))
 

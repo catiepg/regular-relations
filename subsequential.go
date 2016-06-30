@@ -59,28 +59,6 @@ func (ss *sState) getFinalOut() []string {
 	return finalRemaining
 }
 
-func (ss *sState) hasPairs(ps []*pair) bool {
-	if len(ss.remainingPairs) != len(ps) {
-		return false
-	}
-
-	if len(ss.remainingPairs) == 0 && len(ps) == 0 {
-		return true
-	}
-
-	var found bool
-	for _, p := range ss.remainingPairs {
-		for _, o := range ps {
-			if p.equal(o) {
-				found = true
-				break
-			}
-			found = false
-		}
-	}
-	return found
-}
-
 type cacheMap struct {
 	next  map[pair]*cacheMap
 	state *sState
@@ -174,7 +152,7 @@ func NewSubsequential(source io.Reader) (*Subsequential, error) {
 	sc := newStateCache()
 
 	var initPairs pairs
-	i := &pair{state: tr.start, remaining: ""}
+	i := &pair{state: tr.root, remaining: ""}
 	initPairs = append(initPairs, i)
 	start := sc.getOrCreate(initPairs)
 	start.remainingPairs = append(start.remainingPairs, i)
@@ -229,8 +207,6 @@ func NewSubsequential(source io.Reader) (*Subsequential, error) {
 			nextState := sc.getOrCreate(newPairs)
 
 			// ...and create new one if necessary
-			// if nextState == nil {
-			// nextState = newSState()
 			if !nextState.isVisited {
 				nextState.isVisited = true
 				nextState.remainingPairs = newPairs
@@ -241,5 +217,6 @@ func NewSubsequential(source io.Reader) (*Subsequential, error) {
 			state.next[in] = nextState
 		}
 	}
+
 	return &Subsequential{start: start}, nil
 }

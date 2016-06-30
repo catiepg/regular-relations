@@ -1,85 +1,68 @@
 package relations
 
-import "io"
+import (
+	"io"
 
+	"github.com/oleiade/lane"
+)
+
+// tTransition keeps the destination state and its output
 // TODO: handle epsilon and empty set as input - 0 and 1
 type tTransition struct {
 	state *tState
 	out   string
 }
 
+// tState is a state of a transducer
 type tState struct {
 	index int
 	next  map[rune][]*tTransition
 	final bool
 }
 
-// TODO: instead of unmarked - queue
-type tStates struct {
-	all       map[int]*tState // state index -> state
-	positions map[int]set     // state index -> positions
-	reversed  map[uint][]int  // set hash -> state index
-	unmarked  []int
-	index     int
-}
-
-func (ss *tStates) add(positions set) *tState {
-	ss.index += 1
-	state := &tState{
-		index: ss.index,
-		next:  make(map[rune][]*tTransition),
-	}
-	ss.all[ss.index] = state
-	ss.positions[ss.index] = positions
-	ss.reversed[positions.hash()] = append(ss.reversed[positions.hash()], ss.index)
-	ss.unmarked = append(ss.unmarked, ss.index)
-	return state
-}
-
-func (ss *tStates) get(positions set) *tState {
-	if indexes, ok := ss.reversed[positions.hash()]; ok {
-		if len(indexes) == 1 {
-			return ss.all[indexes[0]]
-		} else {
-			for _, i := range indexes {
-				if ss.positions[i].equal(positions) {
-					return ss.all[i]
-				}
-			}
-		}
-	}
-	return nil
-}
-
 type transducer struct {
-	start *tState
+	root *tState
 }
 
+// NewTransducer constructs a new transducer from input reader
 func NewTransducer(source io.Reader) (*transducer, error) {
 	meta, err := ComputeRegExpMetadata(source)
 	if err != nil {
 		return nil, err
 	}
 
-	states := tStates{all: make(map[int]*tState),
-		positions: make(map[int]set), reversed: make(map[uint][]int)}
-	start := states.add(meta.rootFirst)
+	states := map[int]*tState{}  // state index -> state
+	positions := map[int]set{}   // state index -> positions
+	reversed := map[uint][]int{} // set hash -> state index
+	unmarked := lane.NewQueue()
+	index := 0
 
-	for {
-		if len(states.unmarked) == 0 {
-			break
+	// Creates a new transducer state and updates complementary structures
+	addState := func(p set) *tState {
+		index++
+
+		state := &tState{
+			next:  map[rune][]*tTransition{},
+			index: index,
 		}
+		states[index] = state
+		positions[index] = p
+		reversed[p.hash()] = append(reversed[p.hash()], index)
 
-		// Get next unmarked state and add it to the set of marked states
-		stateIndex := states.unmarked[0]
-		states.unmarked = states.unmarked[1:]
-		state := states.all[stateIndex]
+		return state
+	}
+
+	root := addState(meta.rootFirst)
+	unmarked.Enqueue(root)
+
+	for unmarked.Size() != 0 {
+		state := unmarked.Dequeue().(*tState)
 
 		// Get union of follow for positions in the state than correspond
 		// to the same element, instead of going through each element in the
 		// alphabet
-		followUnion := make(map[rule]set)
-		for position := range states.positions[stateIndex] {
+		followUnion := map[rule]set{}
+		for position := range positions[state.index] {
 			elem := meta.rules[position]
 			if _, ok := followUnion[elem]; ok {
 				for p := range meta.follow[position] {
@@ -94,22 +77,34 @@ func NewTransducer(source io.Reader) (*transducer, error) {
 
 		for symb, union := range followUnion {
 			// Check if state with these positions already exists...
-			nextState := states.get(union)
-
-			// ...otherwise create new state
-			if nextState == nil {
-				nextState = states.add(union)
-				if union.contains(meta.finalIndex) {
-					nextState.final = true
+			var nextState *tState
+			if indexes, ok := reversed[union.hash()]; ok {
+				if len(indexes) == 1 {
+					nextState = states[indexes[0]]
+				} else {
+					for _, i := range indexes {
+						if positions[i].equal(union) {
+							nextState = states[i]
+							break
+						}
+					}
 				}
 			}
 
-			// Add transitions
-			if nextState != nil {
-				o := &tTransition{state: nextState, out: symb.out}
-				state.next[symb.in] = append(state.next[symb.in], o)
+			// ...otherwise create new state
+			if nextState == nil {
+				nextState = addState(union)
+				if union.contains(meta.finalIndex) {
+					nextState.final = true
+				}
+				unmarked.Enqueue(nextState)
 			}
+
+			// Add transitions
+			state.next[symb.in] = append(state.next[symb.in],
+				&tTransition{state: nextState, out: symb.out})
 		}
 	}
-	return &transducer{start: start}, nil
+
+	return &transducer{root: root}, nil
 }

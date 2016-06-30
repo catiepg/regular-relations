@@ -57,6 +57,8 @@ func (on *operatorNode) base() *baseNode {
 	return &on.baseNode
 }
 
+// metadata contains information derived from a regular expression which is
+// necessary for the construction of a transducer
 type metadata struct {
 	rootFirst  set
 	follow     map[int]set
@@ -80,7 +82,10 @@ func (m *metadata) newRuleNode(in rune, out string) *ruleNode {
 	return node
 }
 
-// Updates followPos with information from newly created node
+// Create new parse tree node and calculate:
+//   first  - first rules of the language of the node
+//   last   - last rules of the language of the node
+//   follow - rules that can follow this node
 func (m *metadata) newOperatorNode(operator rune, left, right node) *operatorNode {
 	node := &operatorNode{kind: operator, left: left, right: right}
 
