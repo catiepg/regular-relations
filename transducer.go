@@ -17,6 +17,7 @@ type tState struct {
 type tStates struct {
 	all       map[int]*tState // state index -> state
 	positions map[int]*set    // state index -> positions
+	reversed  map[uint][]int  // set hash -> state index
 	unmarked  []int
 	index     int
 }
@@ -29,14 +30,21 @@ func (ss *tStates) add(positions *set) *tState {
 	}
 	ss.all[ss.index] = state
 	ss.positions[ss.index] = positions
+	ss.reversed[positions.hash()] = append(ss.reversed[positions.hash()], ss.index)
 	ss.unmarked = append(ss.unmarked, ss.index)
 	return state
 }
 
 func (ss *tStates) get(positions *set) *tState {
-	for i, p := range ss.positions {
-		if p.equal(positions) {
-			return ss.all[i]
+	if indexes, ok := ss.reversed[positions.hash()]; ok {
+		if len(indexes) == 1 {
+			return ss.all[indexes[0]]
+		} else {
+			for _, i := range indexes {
+				if ss.positions[i].equal(positions) {
+					return ss.all[i]
+				}
+			}
 		}
 	}
 	return nil
@@ -52,7 +60,8 @@ func NewTransducer(source io.Reader) (*transducer, error) {
 		return nil, err
 	}
 
-	states := tStates{all: make(map[int]*tState), positions: make(map[int]*set)}
+	states := tStates{all: make(map[int]*tState),
+		positions: make(map[int]*set), reversed: make(map[uint][]int)}
 	start := states.add(tree.rootFirst)
 
 	for {
