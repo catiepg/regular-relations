@@ -7,24 +7,24 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestSubsequential(t *testing.T) {
+func TestBuildRegularRelation(t *testing.T) {
 	source := strings.NewReader(`<abc,xyz>+<acc,qwe>`)
-	s, _ := NewSubsequential(source)
+	rr, _ := Build(source)
 
-	out, ok := s.Get("abc")
+	out, ok := rr.GetOutput("abc")
 	assert.Equal(t, 1, len(out))
 	assert.Equal(t, "xyz", out[0])
 	assert.True(t, ok)
 }
 
-func TestSubsequentialStructure(t *testing.T) {
+func TestSubsequentialTransducerStructure(t *testing.T) {
 	source := strings.NewReader(`<abc,xyz>+<acc,qwe>`)
-	s, _ := NewSubsequential(source)
+	rr, _ := Build(source)
 
-	assert.Equal(t, 1, len(s.start.next))
-	assert.Equal(t, "", s.start.out['a'])
+	assert.Equal(t, 1, len(rr.start.next))
+	assert.Equal(t, "", rr.start.out['a'])
 
-	state2 := s.start.next['a']
+	state2 := rr.start.next['a']
 	assert.Equal(t, 2, len(state2.next))
 	assert.Equal(t, "xyz", state2.out['b'])
 	assert.Equal(t, "qwe", state2.out['c'])
@@ -33,5 +33,4 @@ func TestSubsequentialStructure(t *testing.T) {
 	state4 := state2.next['c']
 	assert.Equal(t, 1, len(state3.next))
 	assert.Equal(t, 1, len(state4.next))
-	// assert.True(t, state3.next['c'] == state4.next['c'])
 }

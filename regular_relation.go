@@ -52,7 +52,7 @@ func newSState() *sState {
 	return &sState{next: make(map[rune]*sState), out: make(map[rune]string)}
 }
 
-// Get final outputs if pair has final state.
+// getFinalOut gets final outputs if pair has final state.
 func (ss *sState) getFinalOut() []string {
 	var finalRemaining []string
 	for _, p := range ss.remainingPairs {
@@ -79,11 +79,15 @@ func longestCommonPrefix(strs [][]rune) string {
 	return string(strs[0])
 }
 
-type Subsequential struct {
+// RegularRelation is a struct containing the initial state of the
+// subsequential transducer that recognizes the input regular relation.
+type RegularRelation struct {
 	start *sState
 }
 
-func (s *Subsequential) Get(input string) ([]string, bool) {
+// GetOuput feeds the input string into the RegularRelation transducer
+// and returns all possible outputs from the second transducer tape.
+func (s *RegularRelation) GetOutput(input string) ([]string, bool) {
 	node := s.start
 	var output string
 
@@ -108,7 +112,10 @@ func (s *Subsequential) Get(input string) ([]string, bool) {
 	return result, true
 }
 
-func NewSubsequential(source io.Reader) (*Subsequential, error) {
+// Build builds a RegularRelation subsequential transducer from the
+// input regular relation.
+// TODO: define regular relation grammar.
+func Build(source io.Reader) (*RegularRelation, error) {
 	tr, err := NewTransducer(source)
 	if err != nil {
 		return nil, err
@@ -186,5 +193,5 @@ func NewSubsequential(source io.Reader) (*Subsequential, error) {
 		}
 	}
 
-	return &Subsequential{start: start}, nil
+	return &RegularRelation{start: start}, nil
 }
