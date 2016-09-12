@@ -1,7 +1,5 @@
 package relations
 
-import "sort"
-
 type set map[int]struct{}
 
 func newSet(elements ...int) set {
@@ -55,20 +53,4 @@ func (s set) equal(other set) bool {
 	}
 
 	return true
-}
-
-func (s set) hash() uint {
-	var ints []int
-	for e := range s {
-		ints = append(ints, e)
-	}
-
-	sort.Ints(ints)
-
-	k := uint(ints[0])
-	for _, i := range ints {
-		h := k & 0xf8000000
-		k = (k << 5) ^ (h >> 27) ^ uint(i)
-	}
-	return k
 }

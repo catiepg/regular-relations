@@ -9,7 +9,7 @@ import (
 	"github.com/oleiade/lane"
 )
 
-// Regular expression operators
+// Regular expression operators.
 const (
 	union  = '+'
 	concat = '.'
@@ -17,25 +17,25 @@ const (
 	end    = '!'
 )
 
-// rule is a basic relation element in a regular expression
+// rule is a basic relation element in a regular expression.
 type rule struct {
 	in  rune
 	out string
 }
 
-// node is an element in a parse tree
+// node is an element in a parse tree.
 type node interface {
 	base() *baseNode
 }
 
-// baseNode presents a common structure for a node element
+// baseNode presents a common structure for a node element.
 type baseNode struct {
 	nullable bool
 	first    set
 	last     set
 }
 
-// ruleNode is a leaf node element for a regular expression rule
+// ruleNode is a leaf node element for a regular expression rule.
 type ruleNode struct {
 	baseNode
 	index int
@@ -45,7 +45,7 @@ func (rn *ruleNode) base() *baseNode {
 	return &rn.baseNode
 }
 
-// operatorNode joins node elements via regular expression operation
+// operatorNode joins node elements via regular expression operation.
 type operatorNode struct {
 	baseNode
 	kind  rune
@@ -57,17 +57,17 @@ func (on *operatorNode) base() *baseNode {
 	return &on.baseNode
 }
 
-// metadata contains information derived from a regular expression which is
-// necessary for the construction of a transducer
-type metadata struct {
+// parserMeta contains information derived from a regular expression which is
+// necessary for the construction of a transducer.
+type parserMeta struct {
 	rootFirst  set
 	follow     map[int]set
 	rules      map[int]rule
 	finalIndex int
 }
 
-func (m *metadata) newRuleNode(in rune, out string) *ruleNode {
-	// Unique index for each rule
+func (m *parserMeta) newRuleNode(in rune, out string) *ruleNode {
+	// Unique index for each rule.
 	m.finalIndex++
 
 	m.rules[m.finalIndex] = rule{in, out}
@@ -76,22 +76,22 @@ func (m *metadata) newRuleNode(in rune, out string) *ruleNode {
 		m.finalIndex,
 	}
 
-	// Mark if language of the new node accepts empty string
+	// Mark if language of the new node accepts empty string.
 	node.nullable = (in == 0 && out == "")
 
 	return node
 }
 
-// Create new parse tree node and calculate:
-//   first  - first rules of the language of the node
-//   last   - last rules of the language of the node
-//   follow - rules that can follow this node
-func (m *metadata) newOperatorNode(operator rune, left, right node) *operatorNode {
+// newOperatorNode creates new parse tree node and calculates:
+//   first  - first rules of the language of the node;
+//   last   - last rules of the language of the node;
+//   follow - rules that can follow this node.
+func (m *parserMeta) newOperatorNode(operator rune, left, right node) *operatorNode {
 	node := &operatorNode{kind: operator, left: left, right: right}
 
 	leftBase := node.left.base()
 
-	// node.right == nil for `*` operator
+	// node.right == nil for unary operators (only `*` for now).
 	var rightBase *baseNode
 	if node.right != nil {
 		rightBase = node.right.base()
@@ -134,13 +134,10 @@ func (m *metadata) newOperatorNode(operator rune, left, right node) *operatorNod
 	return node
 }
 
-// Builds parse tree from regular expression while computing
-// nullable, firstPos, lastPos and followPos
-func ComputeRegExpMetadata(source io.Reader) (*metadata, error) {
-	meta := &metadata{
-		follow: map[int]set{},
-		rules:  map[int]rule{},
-	}
+// ComputeParserMeta builds parse tree from regular expression while computing
+// nullable, firstPos, lastPos and followPos.
+func ComputeParserMeta(source io.Reader) (*parserMeta, error) {
+	meta := &parserMeta{follow: map[int]set{}, rules: map[int]rule{}}
 
 	nodes := lane.NewStack()
 	operators := lane.NewStack()
@@ -177,11 +174,11 @@ func ComputeRegExpMetadata(source io.Reader) (*metadata, error) {
 				out.WriteRune(char)
 			}
 
-			// Add first with output
+			// Add first with output.
 			first, _, _ := in.ReadRune()
 			nodes.Push(meta.newRuleNode(first, out.String()))
 
-			// Add the rest with concatenation
+			// Add the rest with concatenation.
 			for {
 				c, _, err := in.ReadRune()
 				if err == io.EOF {
@@ -222,7 +219,7 @@ func ComputeRegExpMetadata(source io.Reader) (*metadata, error) {
 		nodes.Push(meta.newOperatorNode(operator, left, right))
 	}
 
-	// Add endmarker character
+	// Add endmarker character.
 	right := meta.newRuleNode(end, "")
 	left := nodes.Pop().(node)
 	root := meta.newOperatorNode(concat, left, right)

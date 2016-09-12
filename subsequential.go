@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/oleiade/lane"
+	"github.com/s2gatev/hcache"
 )
 
 type pair struct {
@@ -17,26 +18,29 @@ func (p *pair) equal(o *pair) bool {
 	return p.state.index == o.state.index && p.remaining == o.remaining
 }
 
-type pairs []*pair
+type pairs []hcache.Key // []*pairs
 
-func (ps *pairs) Len() int {
-	return len(*ps)
+func (ps pairs) Len() int {
+	return len(ps)
 }
 
-func (ps *pairs) Less(i, j int) bool {
-	if (*ps)[i].state.index == (*ps)[j].state.index {
-		return (*ps)[i].remaining < (*ps)[j].remaining
+func (ps pairs) Less(i, j int) bool {
+	p1 := ps[i].(*pair)
+	p2 := ps[j].(*pair)
+
+	if p1.state.index == p2.state.index {
+		return p1.remaining < p2.remaining
 	}
 
-	return (*ps)[i].state.index < (*ps)[j].state.index
+	return p1.state.index < p2.state.index
 }
 
-func (ps *pairs) Swap(i, j int) {
-	(*ps)[i], (*ps)[j] = (*ps)[j], (*ps)[i]
+func (ps pairs) Swap(i, j int) {
+	ps[i], ps[j] = ps[j], ps[i]
 }
 
 type sState struct {
-	remainingPairs []*pair
+	remainingPairs pairs
 	next           map[rune]*sState
 	out            map[rune]string
 	final          bool
@@ -48,52 +52,16 @@ func newSState() *sState {
 	return &sState{next: make(map[rune]*sState), out: make(map[rune]string)}
 }
 
-// Get final outputs if pair has final state
+// Get final outputs if pair has final state.
 func (ss *sState) getFinalOut() []string {
 	var finalRemaining []string
 	for _, p := range ss.remainingPairs {
+		p := p.(*pair)
 		if p.state.final {
 			finalRemaining = append(finalRemaining, p.remaining)
 		}
 	}
 	return finalRemaining
-}
-
-type cacheMap struct {
-	next  map[pair]*cacheMap
-	state *sState
-}
-
-func newCacheMap() *cacheMap {
-	return &cacheMap{next: make(map[pair]*cacheMap)}
-}
-
-type stateCache struct {
-	root *cacheMap
-}
-
-func newStateCache() *stateCache {
-	return &stateCache{root: newCacheMap()}
-}
-
-func (sc *stateCache) getOrCreateState(m *cacheMap, ps []*pair) *sState {
-	if len(ps) == 0 {
-		if m.state == nil {
-			m.state = newSState()
-		}
-		return m.state
-	}
-
-	next, ok := m.next[*ps[0]]
-	if !ok {
-		next = newCacheMap()
-		m.next[*ps[0]] = next
-	}
-	return sc.getOrCreateState(next, ps[1:])
-}
-
-func (sc *stateCache) getOrCreate(ps []*pair) *sState {
-	return sc.getOrCreateState(sc.root, ps)
 }
 
 func longestCommonPrefix(strs [][]rune) string {
@@ -149,13 +117,11 @@ func NewSubsequential(source io.Reader) (*Subsequential, error) {
 	var allStates []*sState
 	stateQueue := lane.NewQueue()
 
-	sc := newStateCache()
+	sc := hcache.New()
 
-	var initPairs pairs
-	i := &pair{state: tr.root, remaining: ""}
-	initPairs = append(initPairs, i)
-	start := sc.getOrCreate(initPairs)
-	start.remainingPairs = append(start.remainingPairs, i)
+	initPair := &pair{state: tr.root, remaining: ""}
+	start := sc.GetOrInsert(newSState(), initPair).(*sState)
+	start.remainingPairs = append(start.remainingPairs, initPair)
 
 	allStates = append(allStates, start)
 	stateQueue.Enqueue(start)
@@ -163,15 +129,16 @@ func NewSubsequential(source io.Reader) (*Subsequential, error) {
 	for stateQueue.Size() != 0 {
 		state := stateQueue.Dequeue().(*sState)
 
-		// Check if state should be final and add outputs to final output
+		// Check if state should be final and add outputs to final output.
 		if final := state.getFinalOut(); len(final) != 0 {
 			state.final = true
 			state.finalOut = append(state.finalOut, final...)
 		}
 
-		// Get groups of pairs that have states with same input symbol
-		withInput := make(map[rune][]*pair)
+		// Get groups of pairs that have states with same input symbol.
+		withInput := make(map[rune]pairs)
 		for _, p := range state.remainingPairs {
+			p := p.(*pair)
 			for in := range p.state.next {
 				withInput[in] = append(withInput[in], p)
 			}
@@ -179,10 +146,11 @@ func NewSubsequential(source io.Reader) (*Subsequential, error) {
 
 		for in, ps := range withInput {
 			// Get all remaining+out strings from states with given input
-			// and map them to corresponding next state
+			// and map them to corresponding next state.
 			var outputs [][]rune
 			nextStates := make(map[int]*tState)
 			for _, p := range ps {
+				p := p.(*pair)
 				remaining := bytes.Runes([]byte(p.remaining))
 				for _, o := range p.state.next[in] {
 					out := append(remaining, bytes.Runes([]byte(o.out))...)
@@ -191,9 +159,9 @@ func NewSubsequential(source io.Reader) (*Subsequential, error) {
 				}
 			}
 
-			state.out[in] = longestCommonPrefix(outputs) // longest prefix
+			state.out[in] = longestCommonPrefix(outputs)
 
-			// Create new state pairs by removing lcp from outputs
+			// Create new state pairs by removing lcp from outputs.
 			var newPairs pairs
 			for i, out := range outputs {
 				newPairs = append(newPairs, &pair{
@@ -201,12 +169,12 @@ func NewSubsequential(source io.Reader) (*Subsequential, error) {
 					remaining: string(out[len(state.out[in]):]),
 				})
 			}
-			sort.Sort(&newPairs)
+			sort.Sort(newPairs)
 
 			// Check if state with such states exists...
-			nextState := sc.getOrCreate(newPairs)
+			nextState := sc.GetOrInsert(newSState(), newPairs...).(*sState)
 
-			// ...and create new one if necessary
+			// ...and create new one if necessary.
 			if !nextState.isVisited {
 				nextState.isVisited = true
 				nextState.remainingPairs = newPairs
