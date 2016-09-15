@@ -33,7 +33,6 @@ func (ps pairs) Less(i, j int) bool {
 	p1 := ps[i].(*pair)
 	p2 := ps[j].(*pair)
 
-	// Comparing by the remaining symbols.
 	if p1.state.index == p2.state.index {
 		return p1.remaining < p2.remaining
 	}
@@ -124,7 +123,7 @@ func (s *RegularRelation) Transduce(input string) ([]string, bool) {
 // input regular relation expression.
 // TODO: define regular relation grammar.
 func Build(source io.Reader) (*RegularRelation, error) {
-	tr, err := NewTransducer(source)
+	tr, err := newTransducer(source)
 	if err != nil {
 		return nil, err
 	}

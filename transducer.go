@@ -54,9 +54,9 @@ type transducer struct {
 	root *tState
 }
 
-// NewTransducer constructs a new transducer from input reader.
-func NewTransducer(source io.Reader) (*transducer, error) {
-	meta, err := ComputeParserMeta(source)
+// newTransducer constructs a new transducer from input reader.
+func newTransducer(source io.Reader) (*transducer, error) {
+	meta, err := computeParserMeta(source)
 	if err != nil {
 		return nil, err
 	}

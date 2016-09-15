@@ -135,9 +135,9 @@ func (m *parserMeta) newOperatorNode(operator rune, left, right node) *operatorN
 	return node
 }
 
-// ComputeParserMeta builds parse tree from regular expression while computing
+// computeParserMeta builds parse tree from regular expression while computing
 // nullable, firstPos, lastPos and followPos.
-func ComputeParserMeta(source io.Reader) (*parserMeta, error) {
+func computeParserMeta(source io.Reader) (*parserMeta, error) {
 	meta := &parserMeta{follow: map[int]set{}, rules: map[int]rule{}}
 
 	nodes := lane.NewStack()
