@@ -12,16 +12,16 @@ import (
 // The underlying values are of type int.
 type positions []hcache.Key
 
-func (is positions) Len() int {
-	return len(is)
+func (ps positions) Len() int {
+	return len(ps)
 }
 
-func (is positions) Less(i, j int) bool {
-	return is[i].(int) < is[j].(int)
+func (ps positions) Less(i, j int) bool {
+	return ps[i].(int) < ps[j].(int)
 }
 
-func (is positions) Swap(i, j int) {
-	is[i], is[j] = is[j], is[i]
+func (ps positions) Swap(i, j int) {
+	ps[i], ps[j] = ps[j], ps[i]
 }
 
 // tTransition keeps the destination state and its output.

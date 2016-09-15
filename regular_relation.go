@@ -71,8 +71,8 @@ func (ss *sState) getFinalOut() []string {
 	return finalRemaining
 }
 
-// longestCommonPrefix calculates the longest common prefix of the input strings.
-func longestCommonPrefix(strs [][]rune) string {
+// lcp calculates the longest common prefix of the input strings.
+func lcp(strs [][]rune) string {
 	if len(strs) == 0 {
 		return ""
 	}
@@ -93,9 +93,9 @@ type RegularRelation struct {
 	start *sState
 }
 
-// GetOutput feeds the input string into the RegularRelation transducer
+// Transduce feeds the input string into the RegularRelation transducer
 // and returns all possible results from the output transducer tape.
-func (s *RegularRelation) GetOutput(input string) ([]string, bool) {
+func (s *RegularRelation) Transduce(input string) ([]string, bool) {
 	node := s.start
 	var output string
 
@@ -121,7 +121,7 @@ func (s *RegularRelation) GetOutput(input string) ([]string, bool) {
 }
 
 // Build builds a RegularRelation subsequential transducer from the
-// input regular relation.
+// input regular relation expression.
 // TODO: define regular relation grammar.
 func Build(source io.Reader) (*RegularRelation, error) {
 	tr, err := NewTransducer(source)
@@ -129,16 +129,12 @@ func Build(source io.Reader) (*RegularRelation, error) {
 		return nil, err
 	}
 
-	var allStates []*sState
 	stateQueue := lane.NewQueue()
-
 	sc := hcache.New()
 
 	initPair := &pair{state: tr.root, remaining: ""}
 	start := sc.GetOrInsert(newSState(), initPair).(*sState)
 	start.remainingPairs = append(start.remainingPairs, initPair)
-
-	allStates = append(allStates, start)
 	stateQueue.Enqueue(start)
 
 	for stateQueue.Size() != 0 {
@@ -175,9 +171,10 @@ func Build(source io.Reader) (*RegularRelation, error) {
 			}
 
 			// Calculate longest common prefix.
-			state.out[in] = longestCommonPrefix(outputs)
+			state.out[in] = lcp(outputs)
 
-			// Create new state pairs by removing lcp from outputs.
+			// Create new pairs by removing the longest common prefix from
+			// the outputs.
 			var newPairs pairs
 			for i, out := range outputs {
 				newPairs = append(newPairs, &pair{
@@ -190,11 +187,10 @@ func Build(source io.Reader) (*RegularRelation, error) {
 			// Check if state with such state pairs exists...
 			nextState := sc.GetOrInsert(newSState(), newPairs...).(*sState)
 
-			// ...and populate the state if necessary.
+			// ...and populate the state with the new pairs if necessary.
 			if !nextState.isVisited {
 				nextState.isVisited = true
 				nextState.remainingPairs = newPairs
-				allStates = append(allStates, nextState)
 				stateQueue.Enqueue(nextState)
 			}
 

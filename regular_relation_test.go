@@ -11,7 +11,7 @@ func TestBuildRegularRelation(t *testing.T) {
 	source := strings.NewReader(`<abc,xyz>+<acc,qwe>`)
 	rr, _ := Build(source)
 
-	out, ok := rr.GetOutput("abc")
+	out, ok := rr.Transduce("abc")
 	assert.Equal(t, 1, len(out))
 	assert.Equal(t, "xyz", out[0])
 	assert.True(t, ok)
