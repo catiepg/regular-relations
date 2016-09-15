@@ -8,7 +8,9 @@ import (
 	"github.com/s2gatev/hcache"
 )
 
-type positions []hcache.Key // []int
+// positions is a slice compatible with the hcache structure.
+// The underlying values are of type int.
+type positions []hcache.Key
 
 func (is positions) Len() int {
 	return len(is)
@@ -23,19 +25,19 @@ func (is positions) Swap(i, j int) {
 }
 
 // tTransition keeps the destination state and its output.
-// TODO: handle epsilon and empty set as input - 0 and 1.
 type tTransition struct {
 	state *tState
 	out   string
 }
 
-// tState is a state of a transducer.
+// tState is a state in a transducer. Each has a unique index.
 type tState struct {
 	index int
 	next  map[rune][]*tTransition
 	final bool
 }
 
+// keysAsPositions wraps the given set in a sorted positions struct.
 func keysAsPositions(s set) positions {
 	var ps positions
 	for k := range s {
@@ -46,6 +48,8 @@ func keysAsPositions(s set) positions {
 	return ps
 }
 
+// transducer contains the initial state of the transducer constructed from
+// the parsed regular expression.
 type transducer struct {
 	root *tState
 }

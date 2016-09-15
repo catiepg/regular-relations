@@ -9,6 +9,9 @@ import (
 	"github.com/s2gatev/hcache"
 )
 
+// pair is used in the construction of the subsequential transducer.
+// It contains a transducer state and the symbols that remain to be
+// added to the output.
 type pair struct {
 	state     *tState
 	remaining string
@@ -18,7 +21,9 @@ func (p *pair) equal(o *pair) bool {
 	return p.state.index == o.state.index && p.remaining == o.remaining
 }
 
-type pairs []hcache.Key // []*pairs
+// pairs is a slice compatible with the hcache structure.
+// The underlying values are of type *pair.
+type pairs []hcache.Key
 
 func (ps pairs) Len() int {
 	return len(ps)
@@ -28,6 +33,7 @@ func (ps pairs) Less(i, j int) bool {
 	p1 := ps[i].(*pair)
 	p2 := ps[j].(*pair)
 
+	// Comparing by the remaining symbols.
 	if p1.state.index == p2.state.index {
 		return p1.remaining < p2.remaining
 	}
@@ -39,6 +45,7 @@ func (ps pairs) Swap(i, j int) {
 	ps[i], ps[j] = ps[j], ps[i]
 }
 
+// sState is a state in a subsequential transducer.
 type sState struct {
 	remainingPairs pairs
 	next           map[rune]*sState
@@ -64,6 +71,7 @@ func (ss *sState) getFinalOut() []string {
 	return finalRemaining
 }
 
+// longestCommonPrefix calculates the longest common prefix of the input strings.
 func longestCommonPrefix(strs [][]rune) string {
 	if len(strs) == 0 {
 		return ""
@@ -85,8 +93,8 @@ type RegularRelation struct {
 	start *sState
 }
 
-// GetOuput feeds the input string into the RegularRelation transducer
-// and returns all possible outputs from the second transducer tape.
+// GetOutput feeds the input string into the RegularRelation transducer
+// and returns all possible results from the output transducer tape.
 func (s *RegularRelation) GetOutput(input string) ([]string, bool) {
 	node := s.start
 	var output string
@@ -166,6 +174,7 @@ func Build(source io.Reader) (*RegularRelation, error) {
 				}
 			}
 
+			// Calculate longest common prefix.
 			state.out[in] = longestCommonPrefix(outputs)
 
 			// Create new state pairs by removing lcp from outputs.
@@ -178,10 +187,10 @@ func Build(source io.Reader) (*RegularRelation, error) {
 			}
 			sort.Sort(newPairs)
 
-			// Check if state with such states exists...
+			// Check if state with such state pairs exists...
 			nextState := sc.GetOrInsert(newSState(), newPairs...).(*sState)
 
-			// ...and create new one if necessary.
+			// ...and populate the state if necessary.
 			if !nextState.isVisited {
 				nextState.isVisited = true
 				nextState.remainingPairs = newPairs

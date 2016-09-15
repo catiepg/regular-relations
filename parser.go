@@ -66,6 +66,7 @@ type parserMeta struct {
 	finalIndex int
 }
 
+// newRuleNode creates a new leaf node that represents a <in, out> pair.
 func (m *parserMeta) newRuleNode(in rune, out string) *ruleNode {
 	// Unique index for each rule.
 	m.finalIndex++
@@ -91,7 +92,7 @@ func (m *parserMeta) newOperatorNode(operator rune, left, right node) *operatorN
 
 	leftBase := node.left.base()
 
-	// node.right == nil for unary operators (only `*` for now).
+	// node.right is nil for unary operators (only `*` for now).
 	var rightBase *baseNode
 	if node.right != nil {
 		rightBase = node.right.base()
@@ -157,6 +158,7 @@ func ComputeParserMeta(source io.Reader) (*parserMeta, error) {
 			in := &bytes.Buffer{}
 			out := &bytes.Buffer{}
 
+			// Consume the whole <in, out> pair.
 			for {
 				char, _, err = reader.ReadRune()
 				if err != nil {
@@ -174,11 +176,13 @@ func ComputeParserMeta(source io.Reader) (*parserMeta, error) {
 				out.WriteRune(char)
 			}
 
-			// Add first with output.
+			// Add first rune from the input tape with all symbols from
+			// the output tape.
 			first, _, _ := in.ReadRune()
 			nodes.Push(meta.newRuleNode(first, out.String()))
 
-			// Add the rest with concatenation.
+			// Add the rest of the input tape to the parse tree with
+			// concatenation operator.
 			for {
 				c, _, err := in.ReadRune()
 				if err == io.EOF {
@@ -211,6 +215,7 @@ func ComputeParserMeta(source io.Reader) (*parserMeta, error) {
 		}
 	}
 
+	// Consume everything from the operator and nodes stacks.
 	for !operators.Empty() {
 		operator := operators.Pop().(rune)
 
