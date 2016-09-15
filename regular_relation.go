@@ -100,12 +100,12 @@ func (s *RegularRelation) Transduce(input string) ([]string, bool) {
 	var output string
 
 	for _, symbol := range input {
-		if nextnode, ok := node.next[symbol]; !ok {
+		nextnode, ok := node.next[symbol]
+		if !ok {
 			return nil, false
-		} else {
-			output += node.out[symbol]
-			node = nextnode
 		}
+		output += node.out[symbol]
+		node = nextnode
 	}
 
 	if !node.final {
