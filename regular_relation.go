@@ -121,7 +121,7 @@ func (s *RegularRelation) Transduce(input string) ([]string, bool) {
 
 // Build builds a RegularRelation subsequential transducer from the
 // input regular relation expression.
-// TODO: define regular relation grammar.
+// NOTE: All operations must be explicitly written in the regular expression.
 func Build(source io.Reader) (*RegularRelation, error) {
 	tr, err := newTransducer(source)
 	if err != nil {
